@@ -376,8 +376,8 @@ select.form-input option{background:var(--card2);}
 <div class="toast" id="toast"></div>
 
 <script>
-var API_URL        = 'https://script.google.com/macros/s/AKfycbzGBuubGw-Ojf5E-zRA-W5xEsOk8pWovxdDvc3my5mnoJ1uhbi2wFyLrMCsADRiVTQB/exec';
-var LIFF_ID        = '2009546104-Jdpahe6d';
+var API_URL        = 'https://script.google.com/macros/s/AKfycbwGI1TQFFxDC2XdqR3P9It2LZP-gKsZEu_WMuI-gN5MQiEDdtKWL9nd-5jcbRiFKq0I_w/exec';
+var LIFF_ID        = '2009043114-vjDykqrq';
 var GAS_ADMIN_URL  = API_URL + '?action=getAdminPage';
 var MODEL_URL      = 'https://justadudewhohacks.github.io/face-api.js/models';
 var FACE_THRESHOLD = 0.45;
@@ -410,13 +410,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // startApp ทันที ไม่รอ ไม่มีจอดำ
   startApp();
 
-  // LIFF background - ถ้าเปิดใน LINE browser
+  // LIFF init — ทำงานได้ทั้ง LINE browser และ Chrome
   if (!lineUserId) {
     try {
       liff.init({ liffId: LIFF_ID })
         .then(function() {
           if (!liff.isLoggedIn()) {
-            if (liff.isInClient && liff.isInClient()) { liff.login(); }
+            liff.login({ redirectUri: window.location.href });
             return null;
           }
           return liff.getProfile();
@@ -429,8 +429,8 @@ document.addEventListener('DOMContentLoaded', function() {
           showLineProfile();
           if (typeof checkAutoLogin === 'function') checkAutoLogin();
         })
-        .catch(function() {});
-    } catch(e) {}
+        .catch(function() { showGuestProfile(); });
+    } catch(e) { showGuestProfile(); }
   }
 })
 function startApp() {
@@ -549,9 +549,6 @@ function showScreen(id) {
   window.scrollTo(0, 0);
 }
 
-// ==========================================
-// STATUS DIALOG
-// ==========================================
 function showStatusDialog(opts) {
   document.getElementById('status-dialog-icon').textContent  = opts.icon  || '⚠️';
   document.getElementById('status-dialog-title').textContent = opts.title || 'แจ้งเตือน';
@@ -570,9 +567,6 @@ function showStatusDialog(opts) {
   document.getElementById('status-dialog-overlay').classList.add('show');
 }
 
-// ==========================================
-// LOAD SHIFT & CHECK STATUS
-// ==========================================
 function loadShiftAndGo() {
   showLoading('กำลังตรวจสอบสถานะการเข้างาน...');
   fetch(API_URL + '?action=getShifts')
@@ -974,7 +968,8 @@ function startGPS() {
           '<span style="color:var(--red);">±' + acc + ' เมตร ❌</span>';
         var warnEl   = document.getElementById('g-accuracy-warn');
         var warnText = document.getElementById('g-accuracy-warn-text');
-        warnText.textContent = 'GPS ความแม่นยำต่ำ กรุณาเลือก "ตำแหน่งที่แน่นอน"';
+        warnText.textContent =
+          'ความแม่นยำต่ำเกินไป (±' + acc + ' ม.) ระบบต้องการ ±' + gpsMaxAccuracy + ' ม. หรือน้อยกว่า\nกรุณากดปฏิเสธ แล้วเปิดใหม่ → เลือก "ตำแหน่งที่แน่นอน"';
         warnEl.style.display = 'flex';
         // ยังไม่ lock ปุ่ม Next ทันที — รอให้ processGPS ตัดสินจากระยะทางเอง
         // แต่ถ้า accuracy เกิน 2× threshold ถือว่าใช้ไม่ได้เลย
