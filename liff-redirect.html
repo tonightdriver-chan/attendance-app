@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>กำลังเปิดระบบ...</title>
+<script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Sarabun','Segoe UI',sans-serif;background:#0d0d1a;color:#f0f0f0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.wrap{text-align:center;width:100%;max-width:360px;}
+.icon{font-size:60px;margin-bottom:16px;}
+.spinner{width:40px;height:40px;border:3px solid #2a2a45;border-top-color:#6c63ff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.title{font-size:18px;font-weight:800;color:#a89dff;margin-bottom:8px;}
+.desc{font-size:13px;color:#9090b0;line-height:1.7;margin-bottom:20px;}
+.btn{display:block;width:100%;border:none;border-radius:14px;padding:18px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px;text-align:center;}
+.btn-green{background:linear-gradient(135deg,#00c851,#007e33);color:#fff;}
+.btn-gray{background:#1e1e35;border:1px solid #2a2a45;color:#9090b0;font-size:13px;padding:14px;}
+.step-box{background:#161629;border:1px solid #2a2a45;border-radius:14px;padding:16px;text-align:left;margin-bottom:20px;}
+.step{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #2a2a45;font-size:13px;line-height:1.5;}
+.step:last-child{border-bottom:none;padding-bottom:0;}
+.sn{width:26px;height:26px;border-radius:50%;background:#6c63ff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.url-box{background:#161629;border:1px solid #2a2a45;border-radius:10px;padding:10px;font-size:11px;color:#6c63ff;word-break:break-all;text-align:left;margin-bottom:6px;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#161629;border:1px solid #00e676;border-radius:10px;padding:12px 20px;font-size:13px;color:#00e676;display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Loading -->
+  <div id="v-loading">
+    <div class="icon">🏢</div>
+    <div class="spinner"></div>
+    <div class="title" id="loading-text">กำลังดึงข้อมูล LINE...</div>
+  </div>
+
+  <!-- Manual -->
+  <div id="v-manual" style="display:none;">
+    <div class="icon">🌐</div>
+    <div class="title">กดปุ่มเพื่อเข้าระบบ</div>
+    <div class="desc">ระบบต้องการกล้องเพื่อสแกนใบหน้า<br>กรุณากดปุ่มด้านล่างเพื่อเปิดใน Chrome</div>
+
+    <button class="btn btn-green" id="btn-chrome">
+      📷 เปิดระบบเช็คอิน
+    </button>
+
+    <div class="step-box">
+      <div style="font-size:11px;color:#9090b0;font-weight:700;letter-spacing:1px;margin-bottom:10px;">ถ้าปุ่มด้านบนไม่ทำงาน</div>
+      <div class="step">
+        <div class="sn">1</div>
+        <div>กด <strong>⋮</strong> มุมขวาบน LINE</div>
+      </div>
+      <div class="step">
+        <div class="sn">2</div>
+        <div>เลือก <strong style="color:#00c851;">"เปิดด้วยเบราว์เซอร์เริ่มต้น"</strong></div>
+      </div>
+      <div class="step">
+        <div class="sn">3</div>
+        <div>Chrome เปิด → กด <strong>Allow</strong> กล้อง ✅</div>
+      </div>
+    </div>
+
+    <button class="btn btn-gray" id="btn-copy">📋 คัดลอก URL</button>
+    <div class="url-box" id="url-display"></div>
+  </div>
+
+</div>
+<div class="toast" id="toast">✅ คัดลอกแล้ว! เปิด Chrome แล้ววาง URL</div>
+
+<script>
+// ── แก้ 2 บรรทัดนี้ ──
+var LIFF_ID = '2009546104-Jdpahe6d';
+var APP_URL = 'https://github.com/chabamassage555-sys/attendance-app.git';
+// ─────────────────────
+
+var finalUrl = '';
+
+function openInChrome(url) {
+  // วิธีที่ 1: Android Intent URL (บังคับ Chrome)
+  var host = url.replace('https://','');
+  var intentUrl = 'intent://' + host
+    + '#Intent;scheme=https;package=com.android.chrome;end';
+
+  window.location.href = intentUrl;
+
+  // วิธีที่ 2: fallback ถ้า Intent ไม่ทำงาน (iOS หรือไม่มี Chrome)
+  setTimeout(function() {
+    window.open(url, '_blank');
+  }, 1500);
+
+  // วิธีที่ 3: fallback สุดท้าย
+  setTimeout(function() {
+    window.location.href = url;
+  }, 3000);
+}
+
+function showManual(url) {
+  finalUrl = url;
+  document.getElementById('url-display').textContent = url;
+  document.getElementById('v-loading').style.display = 'none';
+  document.getElementById('v-manual').style.display  = 'block';
+
+  document.getElementById('btn-chrome').addEventListener('click', function() {
+    openInChrome(finalUrl);
+  });
+
+  document.getElementById('btn-copy').addEventListener('click', function() {
+    var ta = document.createElement('textarea');
+    ta.value = finalUrl;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(finalUrl).catch(function(){});
+    }
+    var t = document.getElementById('toast');
+    t.style.display = 'block';
+    setTimeout(function(){ t.style.display='none'; }, 3000);
+  });
+}
+
+function buildUrl(uid, name, pic) {
+  return APP_URL
+    + '?uid='  + encodeURIComponent(uid  || '')
+    + '&name=' + encodeURIComponent(name || '')
+    + '&pic='  + encodeURIComponent(pic  || '');
+}
+
+// ── LIFF Init ──
+liff.init({ liffId: LIFF_ID })
+  .then(function() {
+    if (!liff.isLoggedIn()) {
+      liff.login({ redirectUri: window.location.href });
+      return Promise.reject('login');
+    }
+    return liff.getProfile();
+  })
+  .then(function(p) {
+    var url = buildUrl(p.userId, p.displayName, p.pictureUrl);
+
+    if (liff.isInClient()) {
+      // อยู่ใน LINE → ลอง openWindow ก่อน
+      try {
+        liff.openWindow({ url: url, external: true });
+      } catch(e){}
+
+      // หลัง 1.5 วิ ลอง Intent URL
+      setTimeout(function() { openInChrome(url); }, 1500);
+
+      // หลัง 3 วิ ถ้ายังอยู่ใน LINE → แสดงปุ่ม manual
+      setTimeout(function() {
+        if (document.getElementById('v-loading').style.display !== 'none') {
+          showManual(url);
+        }
+      }, 3000);
+
+    } else {
+      // อยู่ใน Browser แล้ว → ไปเลย
+      window.location.href = url;
+    }
+  })
+  .catch(function(e) {
+    console.error('LIFF:', e);
+    document.getElementById('loading-text').textContent = 'กรุณากดปุ่มด้านล่าง';
+    showManual(buildUrl('','',''));
+  });
+</script>
+</body>
+</html>

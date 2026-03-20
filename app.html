@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ระบบบันทึกเวลาเข้างาน</title>
+<script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0d0d1a;--card:#161629;--card2:#1e1e35;
+  --accent:#6c63ff;--accent2:#e94560;
+  --green:#00e676;--red:#ff5252;--yellow:#ffd740;
+  --text:#f0f0f0;--text2:#9090b0;--border:#2a2a45;
+  --radius:16px;--shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;width:100%;overflow-x:hidden;}
+.app{width:100%;max-width:480px;min-height:100vh;margin:0 auto;position:relative;}
+.screen{display:none;flex-direction:column;min-height:100vh;padding:0 0 40px;animation:fadeIn .3s ease;width:100%;}
+.screen.active{display:flex;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.topbar{background:linear-gradient(135deg,#1a1a3e,#0d0d1a);padding:20px 20px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.topbar-title{font-size:18px;font-weight:700;}
+.topbar-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+.back-btn{background:none;border:none;color:var(--accent);font-size:14px;cursor:pointer;padding:0;margin-bottom:8px;}
+.home-header{background:linear-gradient(135deg,#1a1a3e,#0d0d1a);padding:48px 24px 36px;text-align:center;position:relative;overflow:hidden;}
+.home-header::before{content:'';position:absolute;width:200px;height:200px;background:radial-gradient(circle,rgba(108,99,255,0.15),transparent);top:-50px;right:-50px;border-radius:50%;}
+.home-icon{font-size:52px;margin-bottom:12px;filter:drop-shadow(0 4px 12px rgba(108,99,255,0.4));}
+.home-title{font-size:22px;font-weight:800;background:linear-gradient(135deg,#a89dff,#6c63ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.home-sub{font-size:12px;color:var(--text2);margin-top:6px;letter-spacing:1px;}
+.profile-card{margin:16px 20px 0;background:linear-gradient(135deg,rgba(108,99,255,0.2),rgba(233,69,96,0.1));border:1px solid rgba(108,99,255,0.3);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.profile-avatar{width:44px;height:44px;border-radius:50%;border:2px solid var(--accent);flex-shrink:0;object-fit:cover;}
+.profile-name{font-size:14px;font-weight:700;}
+.profile-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+.menu-grid{padding:16px 20px;display:flex;flex-direction:column;gap:14px;}
+.menu-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:all .2s;box-shadow:var(--shadow);}
+.menu-card:active{transform:scale(0.97);}
+.menu-card.primary{border-color:var(--accent);}
+.menu-icon-wrap{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+.bg-green{background:rgba(0,230,118,0.15);}
+.bg-red{background:rgba(233,69,96,0.15);}
+.bg-yellow{background:rgba(255,215,64,0.15);}
+.bg-blue{background:rgba(79,195,247,0.15);}
+.menu-info{flex:1;}
+.menu-title{font-size:16px;font-weight:700;margin-bottom:3px;}
+.menu-desc{font-size:12px;color:var(--text2);}
+.menu-arrow{color:var(--text2);font-size:18px;}
+.reg-wrap{padding:20px;display:flex;flex-direction:column;gap:16px;}
+.reg-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.reg-title{font-size:16px;font-weight:700;margin-bottom:16px;}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.form-label{font-size:12px;color:var(--text2);font-weight:600;}
+.form-input{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:15px;outline:none;width:100%;transition:border-color .2s;}
+.form-input:focus{border-color:var(--accent);}
+select.form-input option{background:var(--card2);}
+.verify-wrap{padding:20px;display:flex;flex-direction:column;gap:16px;}
+.verify-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.verify-step{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.step-num{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;}
+.step-title{font-size:14px;font-weight:700;word-break:break-word;line-height:1.4;}
+.step-desc{font-size:12px;color:var(--text2);margin-top:2px;}
+.status-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;}
+.status-row:last-child{border-bottom:none;}
+.status-label{font-size:12px;color:var(--text2);flex:1;min-width:0;}
+.status-val{font-size:12px;font-weight:700;text-align:right;flex-shrink:0;max-width:55%;word-break:break-word;}
+.zone-ok{color:var(--green);}
+.zone-fail{color:var(--red);}
+.face-wrap{padding:20px;display:flex;flex-direction:column;gap:16px;align-items:center;}
+.camera-container{width:100%;max-width:320px;position:relative;border-radius:20px;overflow:hidden;border:3px solid var(--border);background:#000;}
+.camera-container video{width:100%;display:block;transform:scaleX(-1);}
+.camera-container canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1);}
+.face-frame{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:200px;height:220px;border:3px solid var(--accent);border-radius:50%;pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,0.5);}
+.face-frame.scanning{border-color:var(--yellow);animation:scanPulse 1s infinite;}
+.face-frame.success{border-color:var(--green);}
+.face-frame.fail{border-color:var(--red);}
+@keyframes scanPulse{0%,100%{box-shadow:0 0 0 9999px rgba(0,0,0,0.5),0 0 20px rgba(108,99,255,0.5)}50%{box-shadow:0 0 0 9999px rgba(0,0,0,0.5),0 0 40px rgba(108,99,255,0.8)}}
+.face-status-text{font-size:15px;font-weight:700;text-align:center;}
+.face-sub-text{font-size:13px;color:var(--text2);text-align:center;}
+.confidence-bar{width:100%;max-width:320px;height:10px;background:var(--card2);border-radius:5px;overflow:hidden;}
+.confidence-fill{height:100%;border-radius:5px;transition:width .3s;}
+.btn{width:100%;border:none;border-radius:var(--radius);padding:18px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn:active:not(:disabled){transform:scale(0.97);}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-secondary{background:var(--card2);border:1px solid var(--border);color:var(--text);}
+.btn-success{background:linear-gradient(135deg,#00e676,#00b248);color:#000;}
+.success-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;text-align:center;gap:20px;}
+.success-icon-big{width:100px;height:100px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:52px;}
+.success-icon-big.in{background:rgba(0,230,118,0.15);}
+.success-icon-big.out{background:rgba(255,82,82,0.15);}
+.success-icon-big.reg{background:rgba(108,99,255,0.15);}
+.success-title{font-size:24px;font-weight:800;}
+.success-name{font-size:18px;color:var(--text2);}
+.result-cards{width:100%;display:flex;flex-direction:column;gap:10px;}
+.result-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.result-label{font-size:12px;color:var(--text2);flex:1;min-width:0;}
+.result-value{font-size:13px;font-weight:700;text-align:right;flex-shrink:0;max-width:60%;word-break:break-word;}
+.alert-card{border-radius:var(--radius);padding:20px;text-align:center;}
+.alert-card.danger{background:rgba(255,82,82,0.1);border:1px solid rgba(255,82,82,0.3);}
+.alert-card.warning{background:rgba(255,215,64,0.1);border:1px solid rgba(255,215,64,0.3);}
+.alert-icon{font-size:40px;margin-bottom:10px;}
+.alert-title{font-size:16px;font-weight:700;color:var(--red);}
+.alert-desc{font-size:13px;color:var(--text2);margin-top:6px;}
+.liff-init{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;z-index:9999;}
+.liff-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+.loading-overlay{position:fixed;inset:0;background:rgba(13,13,26,0.85);display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:998;backdrop-filter:blur(4px);}
+.loading-overlay.show{display:flex;}
+.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--text2);}
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px 24px;font-size:14px;font-weight:600;z-index:1000;transition:transform .3s;white-space:nowrap;box-shadow:var(--shadow);}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:var(--green);color:var(--green);}
+.toast.error{border-color:var(--red);color:var(--red);}
+::-webkit-scrollbar{width:0;}
+/* ── Status Alert Dialog ── */
+.status-dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:none;align-items:center;justify-content:center;z-index:2000;padding:24px;backdrop-filter:blur(4px);}
+.status-dialog-overlay.show{display:flex;}
+.status-dialog{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px 24px;width:100%;max-width:340px;text-align:center;box-shadow:var(--shadow);}
+.status-dialog-icon{font-size:52px;margin-bottom:12px;}
+.status-dialog-title{font-size:18px;font-weight:800;margin-bottom:8px;}
+.status-dialog-desc{font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:16px;white-space:pre-line;}
+.status-dialog-time{font-size:13px;background:var(--card2);border-radius:10px;padding:10px 14px;margin-bottom:20px;color:var(--text);}
+.status-dialog-time span{color:var(--accent);font-weight:700;}
+.status-dialog-btns{display:flex;flex-direction:column;gap:10px;}
+/* ── GPS Accuracy Warning ── */
+.accuracy-warn{background:rgba(255,215,64,0.12);border:1px solid rgba(255,215,64,0.4);border-radius:12px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px;margin-bottom:4px;}
+.accuracy-warn-icon{font-size:20px;flex-shrink:0;}
+.accuracy-warn-text{font-size:12px;color:var(--yellow);line-height:1.5;}
+</style>
+</head>
+<body>
+
+<div class="liff-init" id="liff-init" style="display:none;">
+  <div style="font-size:52px;">&#x1F3E2;</div>
+  <div class="liff-spinner"></div>
+  <div style="font-size:14px;color:var(--text2);" id="liff-init-text">กำลังเชื่อมต่อ...</div>
+</div>
+
+<div class="app">
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="home-header">
+      <div class="home-icon">&#x1F3E2;</div>
+      <div class="home-title">ระบบบันทึกเวลาเข้างาน</div>
+      <div class="home-sub">Face Recognition &amp; GPS Attendance</div>
+    </div>
+    <div class="profile-card" id="profile-card" style="display:none;">
+      <img class="profile-avatar" id="profile-pic" src="" alt="">
+      <div>
+        <div class="profile-name" id="profile-name">-</div>
+        <div class="profile-sub" id="profile-sub">เชื่อมต่อ LINE ✅</div>
+      </div>
+    </div>
+    <div class="menu-grid">
+      <div class="menu-card primary" id="btn-menu-in">
+        <div class="menu-icon-wrap bg-green">&#x1F7E2;</div>
+        <div class="menu-info">
+          <div class="menu-title">เช็คอินเข้างาน</div>
+          <div class="menu-desc">GPS + สแกนใบหน้าอัตโนมัติ</div>
+        </div>
+        <div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-card" id="btn-menu-out">
+        <div class="menu-icon-wrap bg-red">&#x1F534;</div>
+        <div class="menu-info">
+          <div class="menu-title">เช็คเอาท์ออกงาน</div>
+          <div class="menu-desc">GPS + สแกนใบหน้าอัตโนมัติ</div>
+        </div>
+        <div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-card" id="btn-menu-register">
+        <div class="menu-icon-wrap bg-blue">&#x1F4DD;</div>
+        <div class="menu-info">
+          <div class="menu-title">ลงทะเบียนพนักงานใหม่</div>
+          <div class="menu-desc">กรอกข้อมูล + ถ่ายรูปใบหน้า</div>
+        </div>
+        <div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-card" id="btn-menu-admin">
+        <div class="menu-icon-wrap bg-yellow">&#x2699;&#xFE0F;</div>
+        <div class="menu-info">
+          <div class="menu-title">ตั้งค่าระบบ (HR)</div>
+          <div class="menu-desc">สำหรับ HR เท่านั้น 🔐</div>
+        </div>
+        <div class="menu-arrow">›</div>
+      </div>
+    </div>
+    <div style="text-align:center;padding:10px;color:var(--text2);">
+      <div style="font-size:13px;">วันที่ปัจจุบัน</div>
+      <div id="home-clock" style="font-size:32px;font-weight:800;color:var(--text);margin-top:6px;"></div>
+      <div id="home-date" style="font-size:14px;color:var(--text2);margin-top:4px;"></div>
+    </div>
+    <div style="text-align:center;padding:0 20px 10px;">
+      <div id="model-status" style="font-size:11px;color:var(--text2);"></div>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="screen" id="screen-register">
+    <div class="topbar">
+      <button class="back-btn" id="btn-back-reg">‹ กลับ</button>
+      <div class="topbar-title">ลงทะเบียนพนักงานใหม่</div>
+      <div class="topbar-sub">กรอกข้อมูลและถ่ายรูปใบหน้า</div>
+    </div>
+    <div id="reg-step1" class="reg-wrap">
+      <div class="reg-card">
+        <div class="reg-title">👤 ข้อมูลส่วนตัว</div>
+        <div id="reg-line-preview" style="display:none;background:rgba(108,99,255,0.1);border:1px solid rgba(108,99,255,0.3);border-radius:12px;padding:12px;margin-bottom:16px;align-items:center;gap:12px;">
+          <img id="reg-line-pic" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+          <div>
+            <div id="reg-line-name" style="font-size:13px;font-weight:700;"></div>
+            <div style="font-size:11px;color:var(--text2);">LINE Account ✅</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อ-นามสกุล *</label>
+          <input type="text" id="reg-name" class="form-input" placeholder="สมชาย ใจดี">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อเล่น</label>
+          <input type="text" id="reg-nickname" class="form-input" placeholder="ชาย">
+        </div>
+        <div class="form-group">
+          <label class="form-label">เบอร์โทร</label>
+          <input type="tel" id="reg-phone" class="form-input" placeholder="0812345678">
+        </div>
+        <div class="form-group">
+          <label class="form-label">กะงาน *</label>
+          <select id="reg-shift" class="form-input">
+            <option value="">-- เลือกกะงาน --</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-reg-next">📷 ถัดไป: ถ่ายรูปใบหน้า</button>
+      <button class="btn btn-secondary" id="btn-reg-cancel">ยกเลิก</button>
+    </div>
+    <div id="reg-step2" style="display:none;">
+  <div class="face-wrap">
+    <div class="alert-card warning" style="width:100%;">
+      <div class="alert-icon">📸</div>
+      <div class="alert-title" style="color:var(--yellow);">ถ่ายรูปใบหน้า 3 มุม</div>
+      <div class="alert-desc" id="reg-angle-desc">มุมที่ 1: หันหน้าตรง มองกล้อง</div>
+    </div>
+
+    <!-- Step dots -->
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <div id="reg-dot-1" style="width:36px;height:36px;border-radius:50%;background:var(--card2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text2);">1</div>
+      <div id="reg-dot-2" style="width:36px;height:36px;border-radius:50%;background:var(--card2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text2);">2</div>
+      <div id="reg-dot-3" style="width:36px;height:36px;border-radius:50%;background:var(--card2);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text2);">3</div>
+    </div>
+
+    <div class="camera-container">
+      <video id="reg2-video" autoplay playsinline muted></video>
+      <canvas id="reg2-canvas"></canvas>
+      <div class="face-frame" id="reg2-face-frame"></div>
+    </div>
+    <div class="face-status-text" id="reg2-status">กำลังเปิดกล้อง...</div>
+    <div class="face-sub-text" id="reg2-sub">ใบหน้าต้องชัดเจน มีแสงเพียงพอ</div>
+    <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+      <button class="btn btn-success"   id="btn-reg-capture"   disabled>📸 ถ่ายรูป</button>
+      <button class="btn btn-secondary" id="btn-reg-retry-cam" style="display:none;">🔄 ลองเปิดกล้องใหม่</button>
+      <button class="btn btn-secondary" id="btn-reg-back-step1">‹ กลับแก้ข้อมูล</button>
+    </div>
+  </div>
+</div>
+</div><!-- /screen-register -->
+
+  <!-- GPS -->
+  <div class="screen" id="screen-gps">
+    <div class="topbar">
+      <button class="back-btn" id="btn-back-gps">‹ กลับ</button>
+      <div class="topbar-title">ตรวจสอบตำแหน่ง GPS</div>
+      <div class="topbar-sub">ขั้นตอนที่ 1 จาก 2</div>
+    </div>
+    <div class="verify-wrap">
+      <div class="verify-card">
+        <div class="verify-step">
+          <div class="step-num">1</div>
+          <div>
+            <div class="step-title" id="gps-emp-name">-</div>
+            <div class="step-desc" id="gps-emp-shift">-</div>
+          </div>
+        </div>
+        <div class="status-row">
+          <span class="status-label">📡 ความแม่นยำ GPS</span>
+          <span class="status-val" id="g-accuracy">กำลังตรวจสอบ...</span>
+        </div>
+        <div id="g-accuracy-warn" style="display:none;" class="accuracy-warn">
+          <span class="accuracy-warn-icon">⚠️</span>
+          <span class="accuracy-warn-text" id="g-accuracy-warn-text"></span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">📏 ระยะห่างจากที่ทำงาน</span>
+          <span class="status-val" id="g-distance">-</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">🎯 รัศมีที่อนุญาต</span>
+          <span class="status-val" id="g-radius">-</span>
+        </div>
+        <div class="status-row">
+          <span class="status-label">📍 พิกัดของคุณ</span>
+          <span class="status-val" id="g-coord" style="font-size:11px;">รอ GPS...</span>
+        </div>
+      </div>
+      <div id="gps-result-block" style="display:none;"></div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="btn btn-primary" id="btn-gps-next" disabled>📷 ถัดไป: สแกนใบหน้า</button>
+        <button class="btn btn-secondary" id="btn-gps-refresh">🔄 รีเฟรช GPS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FACE VERIFY -->
+  <div class="screen" id="screen-face">
+    <div class="topbar">
+      <button class="back-btn" id="btn-back-face">‹ กลับ</button>
+      <div class="topbar-title">สแกนใบหน้า</div>
+      <div class="topbar-sub">ขั้นตอนที่ 2 จาก 2</div>
+    </div>
+    <div class="face-wrap">
+      <div style="text-align:center;">
+        <div class="face-status-text" id="face-status-text">กำลังเปิดกล้อง...</div>
+        <div class="face-sub-text" id="face-sub-text">หันหน้าตรง มองกล้องค้างไว้</div>
+      </div>
+      <div class="camera-container">
+        <video id="verify-video" autoplay playsinline muted></video>
+        <canvas id="verify-canvas"></canvas>
+        <div class="face-frame" id="verify-face-frame"></div>
+      </div>
+      <div class="confidence-bar">
+        <div class="confidence-fill" id="confidence-fill" style="width:0%;background:var(--accent);"></div>
+      </div>
+      <div class="face-sub-text" id="confidence-text">ความมั่นใจ: 0%</div>
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+        <button class="btn btn-secondary" id="btn-retry-face" style="display:none;">🔄 เริ่มสแกนใหม่</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="screen" id="screen-success">
+    <div class="success-wrap">
+      <div class="success-icon-big in" id="success-icon-wrap">✅</div>
+      <div>
+        <div class="success-title" id="success-title">เช็คอินสำเร็จ!</div>
+        <div class="success-name" id="success-name">-</div>
+      </div>
+      <div class="result-cards" id="result-cards"></div>
+      <button class="btn btn-secondary" id="btn-back-home" style="margin-top:12px;">🏠 กลับหน้าหลัก</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Status Alert Dialog -->
+<div class="status-dialog-overlay" id="status-dialog-overlay">
+  <div class="status-dialog">
+    <div class="status-dialog-icon" id="status-dialog-icon">⚠️</div>
+    <div class="status-dialog-title" id="status-dialog-title">แจ้งเตือน</div>
+    <div class="status-dialog-desc"  id="status-dialog-desc"></div>
+    <div class="status-dialog-time"  id="status-dialog-time" style="display:none;"></div>
+    <div class="status-dialog-btns">
+      <button class="btn btn-primary"   id="status-dialog-action-btn">✅ ดำเนินการต่อ</button>
+      <button class="btn btn-secondary" id="status-dialog-cancel-btn">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">กำลังโหลด...</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var API_URL        = 'https://script.google.com/macros/s/AKfycbzGBuubGw-Ojf5E-zRA-W5xEsOk8pWovxdDvc3my5mnoJ1uhbi2wFyLrMCsADRiVTQB/exec';
+var LIFF_ID        = '2009546104-Jdpahe6d';
+var GAS_ADMIN_URL  = API_URL + '?action=getAdminPage';
+var MODEL_URL      = 'https://justadudewhohacks.github.io/face-api.js/models';
+var FACE_THRESHOLD = 0.45;
+
+var currentMode      = 'in';
+var currentEmp       = null;
+var currentShift     = null;
+var gpsData          = null;
+var modelsLoaded     = false;
+var verifyStream     = null;
+var reg2Stream       = null;
+var autoScanInterval = null;
+var lineUserId       = '';
+var lineUserName     = '';
+var lineUserPic      = '';
+var checkActionFired = false;
+var gpsMaxAccuracy   = 100; // โหลดจาก Config: GPS_ACCURACY_MAX (เมตร)
+
+// ==========================================
+// INIT
+// ==========================================
+document.addEventListener('DOMContentLoaded', function() {
+  var params   = new URLSearchParams(window.location.search);
+  lineUserId   = params.get('uid')  || '';
+  lineUserName = params.get('name') || '';
+  lineUserPic  = params.get('pic')  || '';
+
+  if (lineUserId) { showLineProfile(); }
+
+  // startApp ทันที ไม่รอ ไม่มีจอดำ
+  startApp();
+
+  // LIFF background - ถ้าเปิดใน LINE browser
+  if (!lineUserId) {
+    try {
+      liff.init({ liffId: LIFF_ID })
+        .then(function() {
+          if (!liff.isLoggedIn()) {
+            if (liff.isInClient && liff.isInClient()) { liff.login(); }
+            return null;
+          }
+          return liff.getProfile();
+        })
+        .then(function(p) {
+          if (!p) return;
+          lineUserId   = p.userId      || '';
+          lineUserName = p.displayName || '';
+          lineUserPic  = p.pictureUrl  || '';
+          showLineProfile();
+          if (typeof checkAutoLogin === 'function') checkAutoLogin();
+        })
+        .catch(function() {});
+    } catch(e) {}
+  }
+})
+function startApp() {
+  startClock();
+  bindEvents();
+  loadFaceModels();
+  loadGpsConfig();
+  if (lineUserId) checkAutoLogin();
+}
+
+function loadGpsConfig() {
+  fetch(API_URL + '?action=getConfig')
+    .then(function(r){ return r.json(); })
+    .then(function(cfg) {
+      if (cfg && cfg.GPS_ACCURACY_MAX) {
+        gpsMaxAccuracy = parseInt(cfg.GPS_ACCURACY_MAX) || 100;
+      }
+    })
+    .catch(function(){});
+}
+
+function showLineProfile() {
+  if (!lineUserId) return;
+  var pic = document.getElementById('profile-pic');
+  if (lineUserPic) { pic.src = lineUserPic; } else { pic.style.display = 'none'; }
+  document.getElementById('profile-name').textContent   = lineUserName || '-';
+  document.getElementById('profile-sub').textContent    = 'เชื่อมต่อ LINE ✅';
+  document.getElementById('profile-card').style.display = 'flex';
+}
+
+function showGuestProfile() {
+  document.getElementById('profile-pic').style.display  = 'none';
+  document.getElementById('profile-name').textContent   = 'ผู้ใช้งาน';
+  document.getElementById('profile-sub').textContent    = '⚠️ กรุณาเปิดผ่าน LINE เพื่อเช็คอิน';
+  document.getElementById('profile-card').style.display = 'flex';
+}
+
+function checkAutoLogin() {
+  fetch(API_URL + '?action=getEmployeeByLineId&line_user_id=' + encodeURIComponent(lineUserId))
+    .then(function(r){ return r.json(); })
+    .then(function(emp) {
+      if (emp && emp.emp_id) {
+        currentEmp = emp;
+        // แสดง profile card พร้อมชื่อพนักงาน
+        var picEl = document.getElementById('profile-pic');
+        if (lineUserPic) {
+          picEl.src = lineUserPic;
+          picEl.style.display = '';
+        } else {
+          picEl.style.display = 'none';
+        }
+        document.getElementById('profile-name').textContent = lineUserName || emp.name;
+        document.getElementById('profile-sub').textContent  = 'ยินดีต้อนรับ ' + emp.name + ' ✅';
+        document.getElementById('profile-card').style.display = 'flex';
+      }
+    })
+    .catch(function(){});
+}
+
+// ==========================================
+// FACE MODELS
+// ==========================================
+function loadFaceModels() {
+  document.getElementById('model-status').textContent = '⏳ โหลด Face Recognition...';
+  Promise.all([
+    faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+    faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+    faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+  ]).then(function() {
+    modelsLoaded = true;
+    document.getElementById('model-status').textContent = '✅ Face Recognition พร้อมใช้งาน';
+    setTimeout(function(){ document.getElementById('model-status').textContent = ''; }, 3000);
+  }).catch(function(e) {
+    document.getElementById('model-status').textContent = '❌ โหลดล้มเหลว: ' + e.message;
+  });
+}
+
+// ==========================================
+// BIND EVENTS
+// ==========================================
+function bindEvents() {
+  document.getElementById('btn-menu-in').addEventListener('click',        function(){ startCheckin('in'); });
+  document.getElementById('btn-menu-out').addEventListener('click',       function(){ startCheckin('out'); });
+  document.getElementById('btn-menu-register').addEventListener('click',  openRegister);
+  document.getElementById('btn-menu-admin').addEventListener('click',     function(){ window.open(GAS_ADMIN_URL, '_blank'); });
+  document.getElementById('btn-back-gps').addEventListener('click',       function(){ showScreen('screen-home'); });
+  document.getElementById('btn-back-face').addEventListener('click',      function(){ stopAllCameras(); showScreen('screen-gps'); });
+  document.getElementById('btn-back-home').addEventListener('click',      function(){ stopAllCameras(); showScreen('screen-home'); });
+  document.getElementById('btn-gps-refresh').addEventListener('click',    startGPS);
+  document.getElementById('btn-gps-next').addEventListener('click',       goToFaceScan);
+  document.getElementById('btn-back-reg').addEventListener('click',       function(){ stopAllCameras(); showScreen('screen-home'); });
+  document.getElementById('btn-reg-cancel').addEventListener('click',     function(){ stopAllCameras(); showScreen('screen-home'); });
+  document.getElementById('btn-reg-next').addEventListener('click',       goToRegStep2);
+  document.getElementById('btn-reg-back-step1').addEventListener('click', function(){
+    stopAllCameras();
+    document.getElementById('reg-step1').style.display = 'flex';
+    document.getElementById('reg-step2').style.display = 'none';
+  });
+  document.getElementById('btn-reg-capture').addEventListener('click',   doRegCapture);
+  document.getElementById('btn-reg-retry-cam').addEventListener('click', function(){
+    this.style.display = 'none';
+    startReg2Camera();
+  });
+  document.getElementById('btn-retry-face').addEventListener('click', function(){
+    this.style.display = 'none';
+    startVerifyCamera();
+  });
+  document.getElementById('status-dialog-cancel-btn').addEventListener('click', function(){
+    document.getElementById('status-dialog-overlay').classList.remove('show');
+  });
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ==========================================
+// STATUS DIALOG
+// ==========================================
+function showStatusDialog(opts) {
+  document.getElementById('status-dialog-icon').textContent  = opts.icon  || '⚠️';
+  document.getElementById('status-dialog-title').textContent = opts.title || 'แจ้งเตือน';
+  document.getElementById('status-dialog-desc').textContent  = opts.desc  || '';
+  var timeEl = document.getElementById('status-dialog-time');
+  if (opts.timeText) { timeEl.innerHTML = opts.timeText; timeEl.style.display = 'block'; }
+  else               { timeEl.style.display = 'none'; }
+  var actionBtn = document.getElementById('status-dialog-action-btn');
+  actionBtn.textContent = opts.actionLabel || 'ดำเนินการต่อ';
+  var newBtn = actionBtn.cloneNode(true);
+  actionBtn.parentNode.replaceChild(newBtn, actionBtn);
+  newBtn.addEventListener('click', function(){
+    document.getElementById('status-dialog-overlay').classList.remove('show');
+    if (opts.actionFn) opts.actionFn();
+  });
+  document.getElementById('status-dialog-overlay').classList.add('show');
+}
+
+// ==========================================
+// LOAD SHIFT & CHECK STATUS
+// ==========================================
+function loadShiftAndGo() {
+  showLoading('กำลังตรวจสอบสถานะการเข้างาน...');
+  fetch(API_URL + '?action=getShifts')
+    .then(function(r){ return r.json(); })
+    .then(function(shifts) {
+      currentShift = null;
+      for (var i = 0; i < shifts.length; i++) {
+        if (shifts[i].shift_id === currentEmp.shift_id) { currentShift = shifts[i]; break; }
+      }
+      return fetch(API_URL + '?action=getTodayStatus&emp_id=' + encodeURIComponent(currentEmp.emp_id));
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(status) {
+      hideLoading();
+      if (status && typeof status.checked_in !== 'undefined') { checkStatusAndGo(status); }
+      else { goToGPSScreen(); }
+    })
+    .catch(function(){ hideLoading(); goToGPSScreen(); });
+}
+
+function checkStatusAndGo(status) {
+  var isIn = currentMode === 'in';
+  if (isIn && status.checked_in === true && status.checked_out !== true) {
+    showStatusDialog({
+      icon: '🔒', title: 'คุณเช็คอินแล้ววันนี้!',
+      desc: 'คุณได้เช็คอินเข้างานไปแล้วในวันนี้\nกรุณาเช็คเอ้าท์ออกงานก่อน\nแล้วค่อยเช็คอินใหม่ได้ครับ',
+      timeText: status.time_in ? '⏰ เวลาเช็คอิน: <span>' + status.time_in + ' น.</span>' : null,
+      actionLabel: '📤 ไปเช็คเอ้าท์เลย',
+      actionFn: function(){ currentMode = 'out'; goToGPSScreen(); }
+    });
+    return;
+  }
+  if (!isIn && status.checked_in !== true) {
+    showStatusDialog({
+      icon: '⚠️', title: 'ยังไม่ได้เช็คอิน!',
+      desc: 'คุณยังไม่ได้เช็คอินเข้างานในวันนี้\nกรุณาเช็คอินก่อนนะครับ',
+      actionLabel: '📥 ไปเช็คอินเลย',
+      actionFn: function(){ currentMode = 'in'; goToGPSScreen(); }
+    });
+    return;
+  }
+  if (!isIn && status.checked_out === true) {
+    showStatusDialog({
+      icon: '✅', title: 'เช็คเอ้าท์แล้ววันนี้!',
+      desc: 'คุณได้เช็คเอ้าท์ออกงานแล้วในวันนี้\nหากมีปัญหาให้ติดต่อ HR ครับ',
+      timeText: status.time_out ? '⏰ เวลาเช็คเอ้าท์: <span>' + status.time_out + ' น.</span>' : null,
+      actionLabel: '🏠 กลับหน้าหลัก',
+      actionFn: function(){ showScreen('screen-home'); }
+    });
+    return;
+  }
+  goToGPSScreen();
+}
+
+// ==========================================
+// CLOCK
+// ==========================================
+function startClock() {
+  function tick() {
+    var now    = new Date();
+    var days   = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'];
+    var months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+    var el = document.getElementById('home-clock');
+    if (el) el.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    var de = document.getElementById('home-date');
+    if (de) de.textContent = 'วัน' + days[now.getDay()] + 'ที่ ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + (now.getFullYear() + 543);
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+function pad(n){ return String(n).padStart(2, '0'); }
+
+// ==========================================
+// REGISTER
+// ==========================================
+function openRegister() {
+  fetch(API_URL + '?action=getShifts')
+    .then(function(r){ return r.json(); })
+    .then(function(shifts){
+      var sel = document.getElementById('reg-shift');
+      sel.innerHTML = '<option value="">-- เลือกกะงาน --</option>'
+        + shifts.map(function(s){
+            return '<option value="' + s.shift_id + '">' + s.shift_name + ' (' + s.time_in + '-' + s.time_out + ')</option>';
+          }).join('');
+    }).catch(function(){});
+
+  if (lineUserId) {
+    document.getElementById('reg-line-pic').src = lineUserPic || '';
+    document.getElementById('reg-line-name').textContent = lineUserName || lineUserId;
+    document.getElementById('reg-line-preview').style.display = 'flex';
+    if (!document.getElementById('reg-name').value) {
+      document.getElementById('reg-name').value = lineUserName || '';
+    }
+  }
+
+  document.getElementById('reg-step1').style.display = 'flex';
+  document.getElementById('reg-step2').style.display  = 'none';
+  showScreen('screen-register');
+}
+
+function goToRegStep2() {
+  var name  = document.getElementById('reg-name').value.trim();
+  var shift = document.getElementById('reg-shift').value;
+  if (!name)         { showToast('กรุณากรอกชื่อ-นามสกุล', 'error'); return; }
+  if (!shift)        { showToast('กรุณาเลือกกะงาน', 'error'); return; }
+  if (!modelsLoaded) { showToast('⏳ Face Recognition กำลังโหลด รอสักครู่', 'error'); return; }
+
+  document.getElementById('reg-step1').style.display = 'none';
+  document.getElementById('reg-step2').style.display = 'block';
+  document.getElementById('btn-reg-retry-cam').style.display = 'none';
+  resetRegAngles();   // ← รีเซ็ต angles ทุกครั้ง
+  updateRegAngleUI();
+  startReg2Camera();
+}
+
+function startReg2Camera() {
+  document.getElementById('reg2-status').textContent   = 'กำลังเปิดกล้อง...';
+  document.getElementById('btn-reg-capture').disabled  = true;
+  document.getElementById('reg2-face-frame').className = 'face-frame';
+
+  if (reg2Stream) { reg2Stream.getTracks().forEach(function(t){ t.stop(); }); reg2Stream = null; }
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+    .then(function(stream) {
+      reg2Stream = stream;
+      var v = document.getElementById('reg2-video');
+      v.srcObject = stream;
+      function onReady() {
+        v.play().catch(function(){ v.muted = true; v.play().catch(function(){}); });
+        document.getElementById('reg2-status').textContent   = '✅ กล้องพร้อม กดปุ่มถ่ายรูป';
+        document.getElementById('btn-reg-capture').disabled = false;
+      }
+      if (v.readyState >= 1) { onReady(); } else { v.onloadedmetadata = onReady; }
+      setTimeout(function() {
+        if (document.getElementById('btn-reg-capture').disabled) { onReady(); }
+      }, 3000);
+    })
+    .catch(function(e) {
+      var msg = e.name === 'NotAllowedError'  ? 'ไม่ได้รับอนุญาตใช้กล้อง' :
+                e.name === 'NotFoundError'    ? 'ไม่พบกล้องในอุปกรณ์' :
+                e.name === 'NotReadableError' ? 'กล้องถูกใช้งานอยู่' :
+                'เปิดกล้องไม่ได้: ' + e.message;
+      document.getElementById('reg2-status').textContent = '❌ ' + msg;
+      document.getElementById('btn-reg-retry-cam').style.display = 'flex';
+    });
+}
+
+// เก็บ descriptors 3 มุม
+var regDescriptors = [];
+var regAngle       = 0;
+var regAngles      = [
+  { label: 'มุมที่ 1: หันหน้าตรง มองกล้อง',          btn: '📸 ถ่ายรูปหน้าตรง' },
+  { label: 'มุมที่ 2: หันซ้ายเล็กน้อย แล้วถ่าย',     btn: '📸 ถ่ายรูปหันซ้าย' },
+  { label: 'มุมที่ 3: หันขวาเล็กน้อย แล้วถ่าย',      btn: '📸 ถ่ายรูปหันขวา' }
+];
+
+function resetRegAngles() {
+  regDescriptors = [];
+  regAngle       = 0;
+  updateRegAngleUI();
+}
+
+function updateRegAngleUI() {
+  var a = regAngles[regAngle] || regAngles[0];
+  document.getElementById('reg-angle-desc').textContent = a.label;
+  document.getElementById('btn-reg-capture').textContent = a.btn;
+
+  // อัปเดต dots
+  for (var i = 1; i <= 3; i++) {
+    var dot = document.getElementById('reg-dot-' + i);
+    if (i < regAngle + 1) {
+      dot.style.background = 'var(--green)';
+      dot.style.borderColor = 'var(--green)';
+      dot.style.color = '#000';
+      dot.textContent = '✓';
+    } else if (i === regAngle + 1) {
+      dot.style.background = 'var(--accent)';
+      dot.style.borderColor = 'var(--accent)';
+      dot.style.color = '#fff';
+      dot.textContent = i;
+    } else {
+      dot.style.background = 'var(--card2)';
+      dot.style.borderColor = 'var(--border)';
+      dot.style.color = 'var(--text2)';
+      dot.textContent = i;
+    }
+  }
+}
+
+function doRegCapture() {
+  var video  = document.getElementById('reg2-video');
+  var frame  = document.getElementById('reg2-face-frame');
+  var status = document.getElementById('reg2-status');
+
+  frame.className    = 'face-frame scanning';
+  status.textContent = '🔍 กำลังตรวจจับใบหน้า...';
+  document.getElementById('btn-reg-capture').disabled = true;
+
+  faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+    .withFaceLandmarks().withFaceDescriptor()
+    .then(function(det) {
+      if (!det) {
+        frame.className    = 'face-frame fail';
+        status.textContent = '❌ ไม่พบใบหน้า กรุณาลองใหม่';
+        document.getElementById('btn-reg-capture').disabled = false;
+        return null;
+      }
+
+      // บันทึก descriptor มุมนี้
+      regDescriptors.push(Array.from(det.descriptor));
+      regAngle++;
+
+      frame.className = 'face-frame success';
+
+      if (regAngle < 3) {
+        // ยังไม่ครบ 3 มุม → ถ่ายต่อ
+        updateRegAngleUI();
+        status.textContent = '✅ มุมที่ ' + regAngle + ' สำเร็จ! ถ่ายต่อได้เลย';
+        document.getElementById('btn-reg-capture').disabled = false;
+        return null;
+      }
+
+      // ครบ 3 มุม → คำนวณ average descriptor
+      status.textContent = '✅ ครบ 3 มุม กำลังบันทึก...';
+      var avgDescriptor = averageDescriptors(regDescriptors);
+      showLoading('กำลังบันทึกข้อมูล...');
+
+      return fetch(API_URL, {
+        method: 'POST', redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action         : 'selfRegister',
+          name           : document.getElementById('reg-name').value.trim(),
+          nickname       : document.getElementById('reg-nickname').value.trim(),
+          phone          : document.getElementById('reg-phone').value.trim(),
+          shift_id       : document.getElementById('reg-shift').value,
+          line_user_id   : lineUserId,
+          daily_wage     : 0,
+          late_deduct    : 0,
+          geo_alert      : 'false',
+          radius_m       : 50,
+          face_descriptor: JSON.stringify(avgDescriptor)
+        })
+      }).then(function(r){ return r.json(); });
+    })
+    .then(function(res) {
+      if (!res) return;
+      hideLoading();
+
+      if (res.already_exists) {
+        stopAllCameras();
+        resetRegAngles();
+        showToast('✅ พบข้อมูลเดิม กำลังพาไปเช็คอิน...', 'success');
+        fetch(API_URL + '?action=getEmployeeByLineId&line_user_id=' + encodeURIComponent(lineUserId))
+          .then(function(r){ return r.json(); })
+          .then(function(emp) {
+            if (emp && emp.emp_id) {
+              currentEmp = emp;
+              document.getElementById('profile-sub').textContent = 'ยินดีต้อนรับ ' + emp.name + ' ✅';
+              loadShiftAndGo();
+            }
+          });
+        return;
+      }
+
+      if (res.error) {
+        document.getElementById('reg2-status').textContent = '❌ ' + res.error;
+        document.getElementById('btn-reg-capture').disabled = false;
+        resetRegAngles();
+        updateRegAngleUI();
+        return;
+      }
+
+      stopAllCameras();
+      resetRegAngles();
+      var empName = document.getElementById('reg-name').value.trim();
+      currentEmp  = { emp_id: res.emp_id, name: empName, shift_id: document.getElementById('reg-shift').value, line_user_id: lineUserId };
+      var wrap = document.getElementById('success-icon-wrap');
+      wrap.className = 'success-icon-big reg'; wrap.textContent = '🎉';
+      document.getElementById('success-title').textContent = 'ลงทะเบียนสำเร็จ!';
+      document.getElementById('success-name').textContent  = empName;
+      document.getElementById('result-cards').innerHTML =
+        '<div class="result-card"><span class="result-label">👤 ชื่อ</span><span class="result-value">' + empName + '</span></div>'
+        + '<div class="result-card"><span class="result-label">🆔 รหัส</span><span class="result-value" style="font-size:12px;">' + (res.emp_id||'-') + '</span></div>'
+        + '<div class="result-card"><span class="result-label">📸 ใบหน้า</span><span class="result-value" style="color:var(--green);">✅ 3 มุม บันทึกแล้ว</span></div>'
+        + '<div class="result-card"><span class="result-label">💬 LINE</span><span class="result-value" style="color:var(--green);">✅ บันทึกแล้ว</span></div>';
+      showScreen('screen-success');
+      showToast('✅ ลงทะเบียนสำเร็จ!', 'success');
+    })
+    .catch(function(e) {
+      hideLoading();
+      document.getElementById('reg2-status').textContent = '❌ ' + (e.message || 'เกิดข้อผิดพลาด');
+      document.getElementById('btn-reg-capture').disabled = false;
+      resetRegAngles();
+      updateRegAngleUI();
+    });
+}
+
+// คำนวณค่าเฉลี่ย descriptor จาก 3 มุม
+function averageDescriptors(descriptors) {
+  var len = descriptors[0].length;
+  var avg = new Array(len).fill(0);
+  for (var i = 0; i < descriptors.length; i++) {
+    for (var j = 0; j < len; j++) {
+      avg[j] += descriptors[i][j];
+    }
+  }
+  for (var j = 0; j < len; j++) {
+    avg[j] /= descriptors.length;
+  }
+  return avg;
+}
+
+// ==========================================
+// CHECK IN / OUT
+// ==========================================
+function startCheckin(mode) {
+  currentMode = mode;
+
+  if (currentEmp && currentEmp.emp_id && currentEmp.face_descriptor
+      && String(currentEmp.face_descriptor).length > 10) {
+    loadShiftAndGo();
+    return;
+  }
+
+  if (!lineUserId) {
+    showToast('⚠️ ไม่พบ LINE ID กรุณาเปิดผ่าน LIFF', 'error');
+    return;
+  }
+
+  showLoading('กำลังตรวจสอบข้อมูล...');
+
+  fetch(API_URL + '?action=getEmployeeByLineId&line_user_id=' + encodeURIComponent(lineUserId))
+    .then(function(r){ return r.json(); })
+    .then(function(emp) {
+      hideLoading();
+      if (!emp || !emp.emp_id) {
+        if (confirm('ยังไม่พบข้อมูลของคุณ\nกรุณาลงทะเบียนก่อนเช็คอิน')) {
+          openRegister();
+        }
+        return;
+      }
+      if (!emp.face_descriptor || String(emp.face_descriptor).length < 10) {
+        currentEmp = emp;
+        if (confirm('พบข้อมูล ' + emp.name + '\nแต่ยังไม่มีข้อมูลใบหน้า\nต้องการถ่ายรูปตอนนี้เลยไหม?')) {
+          openRegister();
+        }
+        return;
+      }
+      currentEmp = emp;
+      document.getElementById('profile-sub').textContent = 'ยินดีต้อนรับ ' + emp.name + ' ✅';
+      loadShiftAndGo();
+    })
+    .catch(function() {
+      hideLoading();
+      showToast('❌ โหลดข้อมูลล้มเหลว กรุณาลองใหม่', 'error');
+    });
+}
+
+// loadShiftAndGo is defined above
+
+// ==========================================
+// GPS
+// ==========================================
+function goToGPSScreen() {
+  gpsData = null;
+  document.getElementById('gps-emp-name').textContent  = currentEmp.name;
+  document.getElementById('gps-emp-shift').textContent =
+    (currentShift ? currentShift.shift_name + ' · ' : '') +
+    (currentMode === 'in' ? 'เช็คอินเข้างาน' : 'เช็คเอาท์ออกงาน');
+  document.getElementById('g-radius').textContent   = (currentEmp.radius_m || 50) + ' เมตร';
+  document.getElementById('g-accuracy').textContent = 'กำลังตรวจสอบ...';
+  document.getElementById('g-distance').textContent = '-';
+  document.getElementById('g-coord').textContent    = 'รอ GPS...';
+  document.getElementById('gps-result-block').style.display = 'none';
+  document.getElementById('btn-gps-next').disabled = true;
+  showScreen('screen-gps');
+  startGPS();
+}
+
+function startGPS() {
+  gpsData = null;
+  document.getElementById('g-accuracy').textContent        = '⏳ กำลังรับสัญญาณ...';
+  document.getElementById('g-distance').textContent        = '-';
+  document.getElementById('g-coord').textContent           = '-';
+  document.getElementById('gps-result-block').style.display = 'none';
+  document.getElementById('g-accuracy-warn').style.display = 'none';
+  document.getElementById('btn-gps-next').disabled         = true;
+  if (!navigator.geolocation) { showGPSError('อุปกรณ์ไม่รองรับ GPS'); return; }
+
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      var acc = Math.round(pos.coords.accuracy);
+      gpsData = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: acc };
+
+      // ── ตรวจสอบ accuracy: ถ้าเกิน threshold = ใช้ตำแหน่งโดยประมาณ ──
+      if (acc > gpsMaxAccuracy) {
+        document.getElementById('g-accuracy').innerHTML =
+          '<span style="color:var(--red);">±' + acc + ' เมตร ❌</span>';
+        var warnEl   = document.getElementById('g-accuracy-warn');
+        var warnText = document.getElementById('g-accuracy-warn-text');
+        warnText.textContent = 'GPS ความแม่นยำต่ำ กรุณาเลือก "ตำแหน่งที่แน่นอน"';
+        warnEl.style.display = 'flex';
+        // ยังไม่ lock ปุ่ม Next ทันที — รอให้ processGPS ตัดสินจากระยะทางเอง
+        // แต่ถ้า accuracy เกิน 2× threshold ถือว่าใช้ไม่ได้เลย
+        if (acc > gpsMaxAccuracy * 2) {
+          document.getElementById('gps-result-block').style.display = 'block';
+          document.getElementById('gps-result-block').innerHTML =
+            '<div class="alert-card danger">' +
+            '<div class="alert-icon">📡</div>' +
+            '<div class="alert-title">GPS ไม่แม่นยำพอ</div>' +
+            '<div class="alert-desc">ความแม่นยำ ±' + acc + ' เมตร<br>' +
+            'อุปกรณ์ใช้ตำแหน่งโดยประมาณ (Wi-Fi/เครือข่าย)<br><br>' +
+            '<strong>กรุณาเปิดสิทธิ์ใหม่ → เลือก "แน่นอน"</strong></div></div>';
+          document.getElementById('btn-gps-next').disabled = true;
+          return;
+        }
+      } else {
+        document.getElementById('g-accuracy').innerHTML =
+          '<span style="color:var(--green);">±' + acc + ' เมตร ✅</span>';
+        document.getElementById('g-accuracy-warn').style.display = 'none';
+      }
+
+      processGPS();
+    },
+    function(err) {
+      var msg = err.code === 1 ? 'ไม่ได้รับอนุญาตใช้ตำแหน่ง กรุณาอนุญาตแล้วลองใหม่' :
+                err.code === 2 ? 'รับสัญญาณ GPS ไม่ได้ กรุณาเปิด GPS แล้วลองใหม่'     :
+                'หมดเวลา กรุณาลองใหม่';
+      showGPSError(msg);
+    },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+  );
+}
+
+function processGPS() {
+  var emp      = currentEmp;
+  var distance = calcDistance(gpsData.lat, gpsData.lng, parseFloat(emp.location_lat), parseFloat(emp.location_lng));
+  var radius   = parseInt(emp.radius_m) || 50;
+  var isInZone = distance <= radius;
+  // g-accuracy แสดงผลแล้วใน startGPS พร้อม ✅/❌
+  document.getElementById('g-distance').innerHTML   = '<span class="' + (isInZone ? 'zone-ok' : 'zone-fail') + '">' + distance + ' เมตร</span>';
+  document.getElementById('g-coord').textContent    = gpsData.lat.toFixed(5) + ', ' + gpsData.lng.toFixed(5);
+  var rb = document.getElementById('gps-result-block');
+  rb.style.display = 'block';
+  if (isInZone) {
+    rb.innerHTML = '<div class="alert-card" style="background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);"><div class="alert-icon">✅</div><div style="font-size:16px;font-weight:700;color:var(--green);">อยู่ในพื้นที่</div><div class="alert-desc">ห่างจากที่ทำงาน ' + distance + ' เมตร<br>กดปุ่มด้านล่างเพื่อสแกนใบหน้า</div></div>';
+    document.getElementById('btn-gps-next').disabled = false;
+  } else {
+    rb.innerHTML = '<div class="alert-card danger"><div class="alert-icon">🚫</div><div class="alert-title">อยู่นอกพื้นที่!</div><div class="alert-desc">ระยะห่าง <strong>' + distance + ' เมตร</strong><br>รัศมีที่อนุญาต <strong>' + radius + ' เมตร</strong><br><br><strong>ไม่สามารถเช็คอินได้</strong></div></div>';
+    document.getElementById('btn-gps-next').disabled = true;
+    showToast('🚫 อยู่นอกพื้นที่', 'error');
+  }
+}
+
+function showGPSError(msg) {
+  document.getElementById('g-accuracy').innerHTML = '<span class="zone-fail">ล้มเหลว</span>';
+  var rb = document.getElementById('gps-result-block');
+  rb.style.display = 'block';
+  rb.innerHTML = '<div class="alert-card danger"><div class="alert-icon">❌</div><div class="alert-title">GPS Error</div><div class="alert-desc">' + msg + '</div></div>';
+  showToast('❌ ' + msg, 'error');
+}
+
+// ==========================================
+// FACE VERIFY
+// ==========================================
+function goToFaceScan() {
+  if (!gpsData)      { showToast('❌ ต้องรับสัญญาณ GPS ก่อน', 'error'); return; }
+  if (!modelsLoaded) { showToast('⏳ Face Recognition กำลังโหลด รอสักครู่', 'error'); return; }
+  document.getElementById('btn-retry-face').style.display = 'none';
+  showScreen('screen-face');
+  startVerifyCamera();
+}
+
+function stopAllCameras() {
+  if (autoScanInterval) { clearInterval(autoScanInterval); autoScanInterval = null; }
+  if (verifyStream) { verifyStream.getTracks().forEach(function(t){ t.stop(); }); verifyStream = null; }
+  if (reg2Stream)   { reg2Stream.getTracks().forEach(function(t){ t.stop(); });   reg2Stream   = null; }
+}
+
+function startVerifyCamera() {
+  document.getElementById('verify-face-frame').className  = 'face-frame scanning';
+  document.getElementById('face-status-text').textContent = 'กำลังเปิดกล้อง...';
+  document.getElementById('face-sub-text').textContent    = 'หันหน้าตรง มองกล้องค้างไว้';
+  document.getElementById('confidence-fill').style.width  = '0%';
+  document.getElementById('confidence-text').textContent  = 'ความมั่นใจ: 0%';
+
+  if (verifyStream) { verifyStream.getTracks().forEach(function(t){ t.stop(); }); verifyStream = null; }
+  if (autoScanInterval) { clearInterval(autoScanInterval); autoScanInterval = null; }
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+    .then(function(stream) {
+      verifyStream = stream;
+      var v = document.getElementById('verify-video');
+      v.srcObject = stream;
+      function onReady() {
+        v.play().catch(function(){ v.muted = true; v.play().catch(function(){}); });
+        document.getElementById('face-status-text').textContent = '👀 มองกล้องตรงๆ กำลังสแกน...';
+        if (!autoScanInterval) startAutoScan();
+      }
+      if (v.readyState >= 1) { onReady(); } else { v.onloadedmetadata = onReady; }
+      setTimeout(function() {
+        if (!autoScanInterval) { onReady(); }
+      }, 3000);
+    })
+    .catch(function(e) {
+      var msg = e.name === 'NotAllowedError'  ? 'ไม่ได้รับอนุญาตใช้กล้อง' :
+                e.name === 'NotFoundError'    ? 'ไม่พบกล้องในอุปกรณ์' :
+                e.name === 'NotReadableError' ? 'กล้องถูกใช้งานอยู่' :
+                'เปิดกล้องไม่ได้: ' + e.message;
+      document.getElementById('face-status-text').textContent = '❌ ' + msg;
+      document.getElementById('btn-retry-face').style.display = 'flex';
+    });
+}
+
+function startAutoScan() {
+  var scanCount = 0;
+  checkActionFired = false;
+  autoScanInterval = setInterval(function() {
+    var video = document.getElementById('verify-video');
+    if (!video || !verifyStream || checkActionFired) return;
+    faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }))
+      .withFaceLandmarks().withFaceDescriptor()
+      .then(function(det) {
+        if (checkActionFired) return; // ── ป้องกัน Promise ค้างที่ resolve ช้า ──
+        if (!det) {
+          document.getElementById('verify-face-frame').className    = 'face-frame scanning';
+          document.getElementById('face-status-text').textContent   = '👀 มองกล้องตรงๆ...';
+          return;
+        }
+        var stored     = new Float32Array(JSON.parse(currentEmp.face_descriptor));
+        var dist       = faceapi.euclideanDistance(det.descriptor, stored);
+        var confidence = Math.max(0, Math.round((1 - dist) * 100));
+        var isMatch    = dist < FACE_THRESHOLD;
+        document.getElementById('confidence-fill').style.width      = confidence + '%';
+        document.getElementById('confidence-fill').style.background = isMatch ? 'var(--green)' : 'var(--yellow)';
+        document.getElementById('confidence-text').textContent      = 'ความมั่นใจ: ' + confidence + '%';
+        document.getElementById('face-status-text').textContent     = '🔍 ' + confidence + '%';
+        if (isMatch) {
+          scanCount++;
+          document.getElementById('verify-face-frame').className = 'face-frame success';
+          if (scanCount >= 2) {
+            checkActionFired = true; // ── set ก่อน clearInterval ──
+            clearInterval(autoScanInterval); autoScanInterval = null;
+            document.getElementById('face-status-text').textContent     = '✅ ยืนยันตัวตนสำเร็จ!';
+            document.getElementById('face-sub-text').textContent        = 'กำลังบันทึก...';
+            document.getElementById('confidence-fill').style.background = 'var(--green)';
+            stopAllCameras();
+            setTimeout(function(){ doCheckAction(); }, 600);
+          }
+        } else {
+          scanCount = 0;
+          document.getElementById('verify-face-frame').className = 'face-frame scanning';
+        }
+      })
+      .catch(function(){});
+  }, 500);
+}
+
+function doCheckAction() {
+  if (!checkActionFired) return;
+  var isIn = currentMode === 'in';
+  showLoading(isIn ? 'กำลังบันทึกเวลาเข้างาน...' : 'กำลังบันทึกเวลาออกงาน...');
+  fetch(API_URL, {
+    method: 'POST', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action      : isIn ? 'checkIn' : 'checkOut',
+      emp_id      : currentEmp.emp_id,
+      lat         : gpsData.lat,
+      lng         : gpsData.lng,
+      reply_token : '',
+      line_user_id: lineUserId
+    })
+  }).then(function(r){ return r.json(); })
+    .then(function(data) {
+      hideLoading();
+      if (data.error) {
+        var msg = data.error || '';
+        if (isIn && msg.indexOf('เช็คอินวันนี้แล้ว') >= 0) {
+          var t = msg.match(/\d{1,2}:\d{2}/);
+          showStatusDialog({
+            icon: '🔒', title: 'เช็คอินซ้ำ!',
+            desc: 'คุณได้เช็คอินวันนี้ไปแล้ว\nกรุณาเช็คเอ้าท์ออกงานก่อนครับ',
+            timeText: t ? '⏰ เวลาเช็คอิน: <span>' + t[0] + ' น.</span>' : null,
+            actionLabel: '📤 ไปเช็คเอ้าท์เลย',
+            actionFn: function(){ currentMode = 'out'; loadShiftAndGo(); }
+          });
+        } else if (!isIn && msg.indexOf('ไม่พบการเช็คอิน') >= 0) {
+          showStatusDialog({
+            icon: '⚠️', title: 'ยังไม่ได้เช็คอิน!',
+            desc: 'ไม่พบการเช็คอินวันนี้\nกรุณาเช็คอินก่อนนะครับ',
+            actionLabel: '📥 ไปเช็คอินเลย',
+            actionFn: function(){ currentMode = 'in'; loadShiftAndGo(); }
+          });
+        } else {
+          showToast('❌ ' + msg, 'error');
+        }
+        return;
+      }
+      showSuccessScreen(data, isIn);
+    })
+    .catch(function() {
+      hideLoading();
+      showToast('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาลองใหม่', 'error');
+    });
+}
+
+function showSuccessScreen(data, isIn) {
+  stopAllCameras();
+  var wrap = document.getElementById('success-icon-wrap');
+  wrap.className   = 'success-icon-big ' + (isIn ? 'in' : 'out');
+  wrap.textContent = isIn ? '✅' : '👋';
+  document.getElementById('success-title').textContent = isIn ? 'เช็คอินสำเร็จ!' : 'เช็คเอาท์สำเร็จ!';
+  document.getElementById('success-name').textContent  = currentEmp.name;
+  var cards = [];
+  if (isIn) {
+    cards.push({ label: '🕐 เวลาเข้างาน', value: data.time });
+    cards.push({ label: '📋 สถานะ',
+      value: data.status === 'late'
+        ? '<span style="color:var(--red);">สาย ' + data.late_min + ' นาที</span>'
+        : '<span style="color:var(--green);">ตรงเวลา</span>'
+    });
+    cards.push({ label: '📍 ตำแหน่ง',
+      value: data.is_in_zone
+        ? '<span style="color:var(--green);">ในพื้นที่</span>'
+        : '<span style="color:var(--red);">นอกพื้นที่</span>'
+    });
+    cards.push({ label: '👤 ยืนยันตัวตน', value: '<span style="color:var(--green);">✅ Face ID ผ่าน</span>' });
+    if (lineUserName) cards.push({ label: '💬 LINE', value: '<span style="color:var(--green);">' + lineUserName + '</span>' });
+  } else {
+    cards.push({ label: '🕐 เวลาออกงาน',  value: data.check_out });
+    cards.push({ label: '⏱ ชั่วโมงทำงาน', value: data.work_hours + ' ชม.' });
+    cards.push({ label: '👤 ยืนยันตัวตน',  value: '<span style="color:var(--green);">✅ Face ID ผ่าน</span>' });
+  }
+  document.getElementById('result-cards').innerHTML = cards.map(function(c){
+    return '<div class="result-card"><span class="result-label">' + c.label + '</span><span class="result-value">' + c.value + '</span></div>';
+  }).join('');
+  showScreen('screen-success');
+}
+
+function calcDistance(lat1, lng1, lat2, lng2) {
+  var R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+function showLoading(text){ document.getElementById('loading-text').textContent = text || 'กำลังโหลด...'; document.getElementById('loading').classList.add('show'); }
+function hideLoading(){ document.getElementById('loading').classList.remove('show'); }
+function showToast(msg, type){
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = 'toast ' + (type || 'success') + ' show';
+  setTimeout(function(){ el.classList.remove('show'); }, 3500);
+}
+</script>
+</body>
+</html>
