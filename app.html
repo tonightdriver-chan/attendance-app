@@ -444,11 +444,15 @@ function startApp() {
   if (lineUserId) checkAutoLogin();
 }
 
+var configCache = {}; // เก็บ Config ทั้งหมดไว้ใช้
+
 function loadGpsConfig() {
   fetch(API_URL + '?action=getConfig')
     .then(function(r){ return r.json(); })
     .then(function(cfg) {
-      if (cfg && cfg.GPS_ACCURACY_MAX) {
+      if (!cfg) return;
+      configCache = cfg; // cache ทั้งหมด
+      if (cfg.GPS_ACCURACY_MAX) {
         gpsMaxAccuracy = parseInt(cfg.GPS_ACCURACY_MAX) || 100;
       }
     })
@@ -1098,15 +1102,44 @@ function processGPS() {
     }
 
   } else {
-    // ── Fallback: ไม่มี Branches → อนุญาตผ่านเลย (ให้ GAS ตรวจสอบเอง) ──
-    detectedBranch = { branch_id: 'BR_MAIN', branch_name: 'สาขาหลัก', distance: 0 };
-    document.getElementById('g-distance').innerHTML = '<span class="zone-ok">รอตรวจสอบ...</span>';
-    rb.innerHTML =
-      '<div class="alert-card" style="background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);">' +
-      '<div class="alert-icon">✅</div>' +
-      '<div style="font-size:16px;font-weight:700;color:var(--green);">GPS รับสัญญาณได้</div>' +
-      '<div class="alert-desc">📍 ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + '<br>กดปุ่มด้านล่างเพื่อสแกนใบหน้า<br><span style="font-size:11px;color:var(--text2);">(ระบบจะตรวจสอบสาขาอัตโนมัติ)</span></div></div>';
-    document.getElementById('btn-gps-next').disabled = false;
+    // ── Fallback: ไม่มี Branches → ใช้พิกัด Config ตรวจสอบ ──
+    var cfgLat    = parseFloat(configCache.LOCATION_LAT || 0);
+    var cfgLng    = parseFloat(configCache.LOCATION_LNG || 0);
+    var cfgRadius = parseInt(configCache.RADIUS_M || 100);
+
+    if (!cfgLat || !cfgLng) {
+      // ยังไม่ได้ตั้งค่า Config เลย → ผ่านไปก่อน
+      detectedBranch = { branch_id: 'BR_MAIN', branch_name: 'สำนักงานหลัก', distance: 0 };
+      document.getElementById('g-distance').innerHTML = '<span class="zone-ok">-</span>';
+      rb.innerHTML = '<div class="alert-card" style="background:rgba(108,99,255,0.1);border:1px solid rgba(108,99,255,0.3);">' +
+        '<div class="alert-icon">⚠️</div><div class="alert-title" style="color:var(--accent);">ยังไม่ได้ตั้งค่าพิกัด</div>' +
+        '<div class="alert-desc">กรุณาตั้งค่า Branches หรือพิกัดใน Config ก่อนใช้งาน</div></div>';
+      document.getElementById('btn-gps-next').disabled = true;
+      return;
+    }
+
+    var dist      = calcDistance(lat, lng, cfgLat, cfgLng);
+    var isInZone  = dist <= cfgRadius;
+    document.getElementById('g-distance').innerHTML =
+      '<span class="' + (isInZone ? 'zone-ok' : 'zone-fail') + '">' + dist + ' เมตร</span>';
+
+    if (isInZone) {
+      detectedBranch = { branch_id: 'BR_MAIN', branch_name: 'สำนักงานหลัก', distance: dist };
+      rb.innerHTML = '<div class="alert-card" style="background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);">' +
+        '<div class="alert-icon">✅</div>' +
+        '<div style="font-size:16px;font-weight:700;color:var(--green);">อยู่ในพื้นที่</div>' +
+        '<div class="alert-desc">ห่างจากที่ทำงาน ' + dist + ' เมตร (รัศมี ' + cfgRadius + ' เมตร)</div></div>';
+      document.getElementById('btn-gps-next').disabled = false;
+    } else {
+      detectedBranch = null;
+      rb.innerHTML = '<div class="alert-card danger"><div class="alert-icon">🚫</div>' +
+        '<div class="alert-title">อยู่นอกพื้นที่!</div>' +
+        '<div class="alert-desc">ระยะห่าง <strong>' + dist + ' เมตร</strong><br>' +
+        'รัศมีที่อนุญาต <strong>' + cfgRadius + ' เมตร</strong><br><br>' +
+        '<strong>ไม่สามารถเช็คอินได้</strong></div></div>';
+      document.getElementById('btn-gps-next').disabled = true;
+      showToast('🚫 อยู่นอกพื้นที่', 'error');
+    }
   }
 }
 
