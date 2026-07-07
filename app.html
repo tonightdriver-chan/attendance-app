@@ -6,6 +6,8 @@
 <title>ระบบบันทึกเวลาเข้างาน</title>
 <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- ★ QR Code generator — สร้าง QR ฝั่ง client ไม่ต้องเรียก API ภายนอก -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
@@ -376,9 +378,9 @@ body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(
 
       <!-- แสดง QR image หลังสร้าง -->
       <div class="gen-qr-qr-display" id="gen-qr-display">
-        <img id="gen-qr-img" src="" alt="QR Code">
+        <canvas id="gen-qr-canvas" style="border-radius:8px;"></canvas>
         <div class="gen-qr-meta" id="gen-qr-meta"></div>
-        <div style="font-size:11px;color:#666;" id="gen-qr-expiry"></div>
+        <div style="font-size:11px;color:#555;margin-top:2px;" id="gen-qr-expiry"></div>
       </div>
 
       <!-- ปุ่ม -->
@@ -387,6 +389,72 @@ body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(
           🔳 สร้าง QR Code วันนี้
         </button>
         <button class="btn btn-secondary" id="btn-gen-qr-refresh">🔄 รีเฟรช GPS ใหม่</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ REGISTER (พนักงานใหม่) ═══════════════════════════ -->
+  <div class="screen" id="screen-register">
+    <div class="topbar">
+      <button class="back-btn" id="btn-back-register">‹ กลับ</button>
+      <div class="topbar-title">ลงทะเบียนพนักงานใหม่</div>
+      <div class="topbar-sub">กรอกข้อมูลครั้งเดียว ใช้ได้ตลอด</div>
+    </div>
+    <div class="verify-wrap">
+
+      <!-- แสดง LINE ที่ login อยู่ -->
+      <div class="verify-card">
+        <div class="verify-step">
+          <div class="step-num" style="background:var(--green);color:#000;font-size:18px;">✅</div>
+          <div>
+            <div class="step-title">เชื่อมต่อ LINE แล้ว</div>
+            <div class="step-desc" id="reg-line-name">กำลังโหลด...</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);padding:8px 12px;background:rgba(0,230,118,0.08);border-radius:8px;line-height:1.6;">
+          LINE ID ของคุณจะถูกบันทึกอัตโนมัติ — ครั้งต่อไปไม่ต้องลงทะเบียนอีก
+        </div>
+      </div>
+
+      <!-- ฟอร์มลงทะเบียน -->
+      <div style="display:flex;flex-direction:column;gap:14px;width:100%;">
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;color:var(--text2);font-weight:600;">🪪 หมายเลขประจำตัวพนักงาน *</label>
+          <input type="text" id="reg-emp-code" placeholder="เช่น 001, EMP001, T-001"
+            style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-size:15px;outline:none;width:100%;-webkit-appearance:none;letter-spacing:1px;">
+          <span style="font-size:11px;color:var(--text2);">หมายเลขที่ HR แจ้งให้คุณทราบ</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;color:var(--text2);font-weight:600;">👤 ชื่อ-นามสกุล *</label>
+          <input type="text" id="reg-name" placeholder="สมชาย ใจดี"
+            style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-size:15px;outline:none;width:100%;-webkit-appearance:none;">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;color:var(--text2);font-weight:600;">📱 เบอร์โทรศัพท์</label>
+          <input type="tel" id="reg-phone" placeholder="0812345678"
+            style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-size:15px;outline:none;width:100%;-webkit-appearance:none;">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label style="font-size:13px;color:var(--text2);font-weight:600;">⏰ กะงาน *</label>
+          <select id="reg-shift"
+            style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-size:15px;outline:none;width:100%;-webkit-appearance:none;">
+            <option value="">-- กำลังโหลดกะงาน... --</option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- ปุ่ม -->
+      <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+        <button class="btn btn-checkin" id="btn-do-register">✅ ลงทะเบียนเข้าระบบ</button>
+        <div style="font-size:12px;color:var(--text2);text-align:center;line-height:1.6;padding:0 8px;">
+          หลังลงทะเบียนแล้ว HR สามารถแก้ไขข้อมูลเพิ่มเติม<br>(ค่าแรง กะงาน สิทธิ์ต่างๆ) ได้จากหน้า Admin
+        </div>
       </div>
 
     </div>
@@ -415,8 +483,8 @@ body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(
 
 <script>
 // ─── CONFIG ───
-var API_URL = 'https://script.google.com/macros/s/AKfycbxxxIvLcPGu8ZBCJ9nCtybfP-adGuhVkPHhpwRRkQaRrJRzMxtyAO6ZYVCJGyd7VxrnfQ/exec'; // ← แก้เป็น URL ของ GAS Web App คุณ
-var LIFF_ID = '2009106492-RzWoG61D'; // ← แก้เป็น LIFF ID ของคุณ
+var API_URL = 'https://script.google.com/macros/s/AKfycbxxxIvLcPGu8ZBCJ9nCtybfP-adGuhVkPHhpwRRkQaRrJRzMxtyAO6ZYVCJGyd7VxrnfQ/exec';
+var LIFF_ID = '2009106492-RzWoG61D';
 
 // ─── STATE ───
 var currentMode   = 'in';
@@ -440,9 +508,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initLiff() {
+  // ★ ถ้าไม่มี LIFF_ID → แสดงหน้า error ทันที ไม่อนุญาตใช้งาน
   if (!LIFF_ID || LIFF_ID === '' || LIFF_ID === 'undefined') {
-    document.getElementById('liff-init').style.display = 'none';
-    initApp();
+    showLiffError('ระบบนี้ต้องเปิดผ่าน LINE เท่านั้น\nกรุณาเปิดจากลิงก์ใน LINE');
     return;
   }
   liff.init({ liffId: LIFF_ID })
@@ -451,16 +519,48 @@ function initLiff() {
       return liff.getProfile();
     })
     .then(function(profile) {
-      if (!profile) return;
+      if (!profile) { showLiffError('ไม่สามารถดึงข้อมูล LINE ได้\nกรุณาลองใหม่'); return; }
       lineProfile = profile;
       renderLineProfile(profile);
       document.getElementById('liff-init').style.display = 'none';
-      initApp();
+      // ★ ตรวจว่า LINE ID นี้อยู่ในระบบหรือไม่ก่อน initApp
+      verifyLineUser(profile.userId);
     })
     .catch(function(e) {
       console.error('LIFF:', e);
+      // ★ LIFF error → บล็อกทันที ไม่ fallback ไป initApp
+      showLiffError('เกิดข้อผิดพลาดในการเชื่อมต่อ LINE\nกรุณาเปิดลิงก์ใหม่อีกครั้ง');
+    });
+}
+
+// ★ ใหม่: แสดงหน้า error แทน liff-init overlay
+function showLiffError(msg) {
+  var el = document.getElementById('liff-init');
+  el.innerHTML = '<div class="liff-init-icon">🔒</div>'
+    + '<div style="font-size:18px;font-weight:700;color:#ff5252;margin-bottom:8px;">ไม่สามารถเข้าถึงได้</div>'
+    + '<div style="font-size:14px;color:#9090b0;text-align:center;max-width:280px;line-height:1.7;">' + msg.replace(/\n/g,'<br>') + '</div>';
+  el.style.display = 'flex';
+}
+
+// ★ ตรวจสอบ LINE ID — ถ้าไม่พบ → ไปหน้าลงทะเบียน (ไม่ block แล้ว)
+function verifyLineUser(lineUserId) {
+  fetch(API_URL + '?action=getEmployeeByLineId&line_user_id=' + encodeURIComponent(lineUserId))
+    .then(function(r){ return r.json(); })
+    .then(function(emp) {
+      if (!emp || !emp.emp_id || emp.status !== 'active') {
+        // ★ ไม่พบในระบบ → ไปหน้าลงทะเบียน
+        document.getElementById('liff-init').style.display = 'none';
+        initApp();
+        goToRegisterScreen();
+        return;
+      }
+      // พบแล้ว → ใช้งานได้เลย
+      currentEmp = emp;
       document.getElementById('liff-init').style.display = 'none';
       initApp();
+    })
+    .catch(function() {
+      showLiffError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้\nกรุณาตรวจสอบสัญญาณอินเทอร์เน็ต');
     });
 }
 
@@ -513,6 +613,9 @@ function bindEvents() {
   $('btn-back-qr').onclick    = function(){ stopCamera(); showScreen('screen-gps'); };
   $('btn-back-home').onclick  = function(){ stopCamera(); showScreen('screen-home'); };
   $('btn-back-gen-qr').onclick= function(){ showScreen('screen-home'); };
+  // ★ ใหม่: หน้าลงทะเบียน
+  $('btn-back-register').onclick = function(){ showScreen('screen-home'); };
+  $('btn-do-register').onclick   = doRegister;
 
   $('btn-gps-refresh').onclick= startGPS;
   $('btn-gps-next').onclick   = goToQRScreen;
@@ -561,11 +664,33 @@ function pad(n){return String(n).padStart(2,'0');}
 // ─── SELECT EMPLOYEE ───
 function goToSelectEmp(mode) {
   currentMode = mode;
+  // ★ ถ้า currentEmp ถูก set จาก LINE ID แล้ว → ข้ามหน้าเลือกไปเลย
+  if (currentEmp && currentEmp.emp_id) {
+    loadShiftThenGPS();
+    return;
+  }
+  // fallback: แสดงรายการเลือก (กรณีไม่มี LIFF แต่ผ่านการล็อค)
   $('select-title').textContent = mode==='in'?'เช็คอินเข้างาน':'เช็คเอ้าท์ออกงาน';
   $('select-sub').textContent   = lineProfile?'สวัสดี '+lineProfile.displayName:'เลือกชื่อของคุณ';
   $('search-input').value = '';
   showScreen('screen-select');
   loadEmployees();
+}
+
+// ★ ใหม่: โหลด shift แล้วไปหน้า GPS ทันที (ใช้ currentEmp ที่ได้จาก LINE)
+function loadShiftThenGPS() {
+  showLoading('กำลังโหลดข้อมูลกะงาน...');
+  fetch(API_URL + '?action=getShifts')
+    .then(function(r){ return r.json(); })
+    .then(function(shifts) {
+      hideLoading();
+      currentShift = null;
+      for (var i = 0; i < shifts.length; i++) {
+        if (shifts[i].shift_id === currentEmp.shift_id) { currentShift = shifts[i]; break; }
+      }
+      goToGPSScreen();
+    })
+    .catch(function() { hideLoading(); showToast('❌ โหลดข้อมูลล้มเหลว','error'); });
 }
 
 function loadEmployees() {
@@ -855,6 +980,102 @@ function showSuccessScreen(data,isIn) {
   showScreen('screen-success');
 }
 
+// ─── REGISTER (พนักงานใหม่ลงทะเบียนตัวเอง) ───
+function goToRegisterScreen() {
+  // แสดงชื่อ LINE
+  var nameEl = document.getElementById('reg-line-name');
+  if (nameEl) nameEl.textContent = lineProfile ? lineProfile.displayName : '-';
+
+  // โหลดกะงานให้เลือก
+  var sel = document.getElementById('reg-shift');
+  sel.innerHTML = '<option value="">-- กำลังโหลด... --</option>';
+  fetch(API_URL + '?action=getShifts')
+    .then(function(r){ return r.json(); })
+    .then(function(shifts) {
+      sel.innerHTML = '<option value="">-- เลือกกะงาน --</option>'
+        + shifts.filter(function(s){ return s.shift_id; }).map(function(s){
+            return '<option value="'+s.shift_id+'">'+s.shift_name
+              +' ('+String(s.time_in).substr(0,5)+' - '+String(s.time_out).substr(0,5)+')</option>';
+          }).join('');
+    })
+    .catch(function(){ sel.innerHTML = '<option value="">-- โหลดไม่ได้ กรุณาลองใหม่ --</option>'; });
+
+  // ล้างฟอร์ม
+  document.getElementById('reg-emp-code').value = '';
+  document.getElementById('reg-name').value  = lineProfile ? lineProfile.displayName : '';
+  document.getElementById('reg-phone').value = '';
+  showScreen('screen-register');
+}
+
+function doRegister() {
+  var empCode = document.getElementById('reg-emp-code').value.trim();
+  var name    = document.getElementById('reg-name').value.trim();
+  var phone   = document.getElementById('reg-phone').value.trim();
+  var shift   = document.getElementById('reg-shift').value;
+
+  if (!empCode){ showToast('❌ กรุณากรอกหมายเลขพนักงาน','error'); return; }
+  if (!name)   { showToast('❌ กรุณากรอกชื่อ-นามสกุล','error'); return; }
+  if (!shift)  { showToast('❌ กรุณาเลือกกะงาน','error'); return; }
+  if (!lineProfile || !lineProfile.userId) {
+    showToast('❌ ไม่พบข้อมูล LINE กรุณาเปิดผ่าน LINE ใหม่','error'); return;
+  }
+
+  var btn = document.getElementById('btn-do-register');
+  btn.disabled = true;
+  showLoading('กำลังลงทะเบียน...');
+
+  fetch(API_URL, {
+    method: 'POST', redirect: 'follow',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      action       : 'addEmployee',
+      nickname     : empCode,        // ★ เก็บหมายเลขพนักงานไว้ใน nickname field
+      name         : name,
+      phone        : phone,
+      shift_id     : shift,
+      line_user_id : lineProfile.userId,
+      emp_type     : 'daily',
+      status       : 'active',
+      radius_m     : 100
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(res) {
+    hideLoading();
+    btn.disabled = false;
+    if (res.error) { showToast('❌ ' + res.error, 'error'); return; }
+    showToast('✅ ลงทะเบียนสำเร็จ!', 'success');
+    currentEmp = {
+      emp_id      : res.emp_id,
+      name        : name,
+      nickname    : empCode,
+      phone       : phone,
+      shift_id    : shift,
+      line_user_id: lineProfile.userId,
+      status      : 'active',
+      radius_m    : 100
+    };
+    showRegisterSuccess(name, empCode);
+  })
+  .catch(function() {
+    hideLoading(); btn.disabled = false;
+    showToast('❌ เชื่อมต่อไม่ได้ กรุณาลองใหม่','error');
+  });
+}
+
+function showRegisterSuccess(name, empCode) {
+  var wrap = document.getElementById('success-icon-wrap');
+  wrap.className = 'success-icon-big in';
+  wrap.textContent = '🎉';
+  document.getElementById('success-title').textContent = 'ลงทะเบียนสำเร็จ!';
+  document.getElementById('success-name').textContent  = name;
+  document.getElementById('result-cards').innerHTML =
+    '<div class="result-card"><span class="result-label">🪪 หมายเลขพนักงาน</span><span class="result-value" style="font-family:monospace;letter-spacing:1px;">'+(empCode||'-')+'</span></div>'
+    + '<div class="result-card"><span class="result-label">💬 LINE</span><span class="result-value" style="color:var(--green);">' + (lineProfile ? lineProfile.displayName : '-') + '</span></div>'
+    + '<div class="result-card"><span class="result-label">📋 ถัดไป</span><span class="result-value" style="font-size:13px;">กดปุ่มด้านล่างเพื่อเช็คอินได้เลย</span></div>';
+  showScreen('screen-success');
+}
+
 // ─── สร้าง QR (พนักงานมีสิทธิ์) ───
 function goToGenQRScreen() {
   genQrGpsData=null;
@@ -928,11 +1149,12 @@ function doSelfGenerateQR() {
     rb.innerHTML='<div class="alert-card success"><div class="alert-icon">🔳</div>'
       +'<div style="font-size:15px;font-weight:700;color:var(--green);">'+(isNew?'✅ สร้าง QR สำเร็จ':'✅ ใช้ QR ที่มีอยู่แล้ว')+'</div>'
       +'<div class="alert-desc">📍 สาขา: <strong>'+res.branch_name+'</strong><br>👤 สร้างโดย: '+res.created_by+(res.created_by_role==='admin'?' (Admin)':'')+'</div></div>';
-    // แสดง QR image
+
+    // ★ สร้าง QR ด้วย qrcode-generator (ไม่ต้องเรียก API ภายนอก ไม่ถูก block)
     var expStr=new Date(res.expires_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
     var display=$('gen-qr-display');
     display.style.display='flex';
-    $('gen-qr-img').src='https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl='+encodeURIComponent(res.token)+'&choe=UTF-8&chld=M|1';
+    drawQRCanvas('gen-qr-canvas', res.token, 240);
     $('gen-qr-meta').textContent='สาขา '+res.branch_name+' · '+res.token;
     $('gen-qr-expiry').textContent='หมดอายุ '+expStr+' น. วันนี้';
     $('genqr-branch').innerHTML='<span class="zone-ok">✅ '+res.branch_name+'</span>';
@@ -948,6 +1170,34 @@ function doSelfGenerateQR() {
 }
 
 // ─── UTILS ───
+// ★ วาด QR Code บน canvas ด้วย qrcode-generator (ไม่ต้องเรียก API ภายนอก)
+function drawQRCanvas(canvasId, text, size) {
+  try {
+    var qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    var canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    var cells      = qr.getModuleCount();
+    var cellSize   = Math.floor(size / cells);
+    var actualSize = cellSize * cells;
+    canvas.width   = actualSize;
+    canvas.height  = actualSize;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, actualSize, actualSize);
+    ctx.fillStyle = '#000000';
+    for (var r = 0; r < cells; r++) {
+      for (var c = 0; c < cells; c++) {
+        if (qr.isDark(r, c)) {
+          ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+  } catch(e) {
+    console.error('drawQRCanvas error:', e);
+  }
+}
 function calcDistance(lat1,lng1,lat2,lng2){
   if(isNaN(lat2)||isNaN(lng2))return 999999;
   var R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
