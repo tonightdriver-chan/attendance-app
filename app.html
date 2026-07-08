@@ -1028,14 +1028,12 @@ function doRegister() {
     method: 'POST', redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
-      action       : 'addEmployee',
-      nickname     : empCode,        // ★ เก็บหมายเลขพนักงานไว้ใน nickname field
+      action       : 'selfRegisterNew',   // ★ ไม่ต้อง pwd — ยืนยันผ่าน LINE ID แทน
+      nickname     : empCode,             // หมายเลขพนักงาน (เก็บใน nickname)
       name         : name,
       phone        : phone,
       shift_id     : shift,
       line_user_id : lineProfile.userId,
-      emp_type     : 'daily',
-      status       : 'active',
       radius_m     : 100
     })
   })
@@ -1043,7 +1041,16 @@ function doRegister() {
   .then(function(res) {
     hideLoading();
     btn.disabled = false;
+
+    if (res.already_exists) {
+      // LINE ID นี้มีในระบบแล้ว → โหลดข้อมูลและเข้าใช้งานได้เลย
+      showToast('✅ พบข้อมูลของคุณในระบบแล้ว', 'success');
+      currentEmp = { emp_id: res.emp_id, name: res.name, line_user_id: lineProfile.userId, status: 'active', radius_m: 100 };
+      showRegisterSuccess(res.name, empCode);
+      return;
+    }
     if (res.error) { showToast('❌ ' + res.error, 'error'); return; }
+
     showToast('✅ ลงทะเบียนสำเร็จ!', 'success');
     currentEmp = {
       emp_id      : res.emp_id,
