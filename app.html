@@ -756,7 +756,7 @@ function goToGPSScreen() {
   $('gps-emp-name').textContent  = currentEmp.name;
   $('gps-emp-shift').textContent = (currentShift?currentShift.shift_name+' · ':'')+(currentMode==='in'?'เช็คอินเข้างาน':'เช็คเอ้าท์ออกงาน');
   $('gps-title').textContent     = currentMode==='in'?'ตรวจสอบ GPS — เช็คอิน':'ตรวจสอบ GPS — เช็คเอ้าท์';
-  $('g-radius').textContent      = (currentEmp.radius_m||50)+' เมตร';
+  $('g-radius').textContent      = '-';
   $('g-accuracy').textContent    = 'กำลังตรวจสอบ...';
   $('g-distance').textContent    = '-';
   $('g-coord').textContent       = 'รอ GPS...';
@@ -771,6 +771,7 @@ function startGPS() {
   gpsData=null;
   $('g-accuracy').textContent='⏳ กำลังรับสัญญาณ...';
   $('g-distance').textContent='-';
+  $('g-radius').textContent='-';
   $('g-coord').textContent='-';
   $('gps-result-block').style.display='none';
   $('btn-gps-next').disabled=true;
@@ -783,27 +784,36 @@ function startGPS() {
 }
 
 function processGPS() {
-  var emp=currentEmp;
-  var dist=calcDistance(gpsData.lat,gpsData.lng,parseFloat(emp.location_lat),parseFloat(emp.location_lng));
-  var radius=parseInt(emp.radius_m)||50;
-  var inZone=dist<=radius;
-  var maxAcc=parseInt(appConfig.GPS_ACCURACY_MAX)||100;
-  var accOk=gpsData.accuracy<=maxAcc;
-  $('g-accuracy').innerHTML='<span class="'+(accOk?'zone-ok':'zone-warn')+'">±'+gpsData.accuracy+' เมตร'+(accOk?'':' (สัญญาณต่ำ)')+'</span>';
-  $('g-distance').innerHTML='<span class="'+(inZone?'zone-ok':'zone-fail')+'">'+dist+' เมตร</span>';
-  $('g-coord').textContent=gpsData.lat.toFixed(5)+', '+gpsData.lng.toFixed(5);
-  var rb=$('gps-result-block'); rb.style.display='block';
-  if (!inZone) {
-    rb.innerHTML='<div class="alert-card danger"><div class="alert-icon">🚫</div><div class="alert-title">อยู่นอกพื้นที่!</div><div class="alert-desc">ระยะห่าง <strong>'+dist+' เมตร</strong><br>รัศมีที่อนุญาต <strong>'+radius+' เมตร</strong><br>ต้องอยู่ในพื้นที่ทำงานเท่านั้น</div></div>';
-    $('btn-gps-next').disabled=true;
-    showToast('🚫 อยู่นอกพื้นที่','error'); return;
-  }
-  if (!accOk) {
-    rb.innerHTML='<div class="alert-card warning"><div class="alert-icon">⚠️</div><div style="font-size:15px;font-weight:700;color:var(--yellow);">GPS ไม่แม่นยำพอ</div><div class="alert-desc">±'+gpsData.accuracy+' เมตร (ควรไม่เกิน '+maxAcc+' เมตร)<br>กด "ถัดไป" เพื่อใช้ตำแหน่งนี้ต่อ หรือรีเฟรช GPS</div></div>';
-  } else {
-    rb.innerHTML='<div class="alert-card success"><div class="alert-icon">✅</div><div style="font-size:15px;font-weight:700;color:var(--green);">อยู่ในพื้นที่</div><div class="alert-desc">ห่าง '+dist+' เมตร · กดถัดไปเพื่อสแกน QR Code</div></div>';
-  }
-  $('btn-gps-next').disabled=false;
+  var position = gpsData;
+  var mode = currentMode;
+  var query = new URLSearchParams({
+    action: 'checkAttendanceGPS', mode: mode,
+    emp_id: currentEmp.emp_id, lat: position.lat, lng: position.lng
+  });
+  $('g-coord').textContent = position.lat.toFixed(5) + ', ' + position.lng.toFixed(5);
+  $('g-accuracy').textContent = '±' + position.accuracy + ' เมตร';
+  fetch(API_URL + '?' + query.toString())
+    .then(function(response) { return response.json(); })
+    .then(function(result) {
+      if (position !== gpsData || mode !== currentMode) return;
+      if (!result || result.error || !result.found) {
+        var block = $('gps-result-block');
+        block.style.display = 'block';
+        block.textContent = result && result.error || 'ไม่สามารถตรวจสอบพื้นที่สาขาได้';
+        if (result && Number.isFinite(result.distance)) $('g-distance').textContent = result.distance + ' เมตร';
+        if (result && Number.isFinite(result.radius_m)) $('g-radius').textContent = result.radius_m + ' เมตร';
+        return;
+      }
+      $('g-radius').textContent = result.radius_m + ' เมตร';
+      $('g-distance').textContent = result.distance + ' เมตร';
+      var block = $('gps-result-block');
+      block.style.display = 'block';
+      block.textContent = '✅ อยู่ในพื้นที่ ' + result.branch_name + ' · กดถัดไปเพื่อสแกน QR Code';
+      $('btn-gps-next').disabled = false;
+    })
+    .catch(function() {
+      if (position === gpsData && mode === currentMode) showGPSError('เชื่อมต่อระบบตรวจพื้นที่ไม่ได้ กรุณาลองใหม่');
+    });
 }
 
 function showGPSError(msg) {
@@ -1042,27 +1052,16 @@ function doRegister() {
     hideLoading();
     btn.disabled = false;
 
-    if (res.already_exists) {
-      // LINE ID นี้มีในระบบแล้ว → โหลดข้อมูลและเข้าใช้งานได้เลย
-      showToast('✅ พบข้อมูลของคุณในระบบแล้ว', 'success');
-      currentEmp = { emp_id: res.emp_id, name: res.name, line_user_id: lineProfile.userId, status: 'active', radius_m: 100 };
-      showRegisterSuccess(res.name, empCode);
-      return;
-    }
     if (res.error) { showToast('❌ ' + res.error, 'error'); return; }
-
-    showToast('✅ ลงทะเบียนสำเร็จ!', 'success');
-    currentEmp = {
-      emp_id      : res.emp_id,
-      name        : name,
-      nickname    : empCode,
-      phone       : phone,
-      shift_id    : shift,
-      line_user_id: lineProfile.userId,
-      status      : 'active',
-      radius_m    : 100
-    };
-    showRegisterSuccess(name, empCode);
+    btn.disabled = true;
+    return fetch(API_URL + '?action=getEmployeeByLineId&line_user_id=' + encodeURIComponent(lineProfile.userId))
+      .then(function(response) { return response.json(); })
+      .then(function(emp) {
+        btn.disabled = false;
+        if (!emp || !emp.emp_id || emp.status !== 'active') throw new Error('Employee profile unavailable');
+        currentEmp = emp;
+        showRegisterSuccess(emp.name, empCode);
+      });
   })
   .catch(function() {
     hideLoading(); btn.disabled = false;
@@ -1205,12 +1204,7 @@ function drawQRCanvas(canvasId, text, size) {
     console.error('drawQRCanvas error:', e);
   }
 }
-function calcDistance(lat1,lng1,lat2,lng2){
-  if(isNaN(lat2)||isNaN(lng2))return 999999;
-  var R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
-  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
-  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
-}
+
 function getTodayStr(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
 function showLoading(t){$('loading-text').textContent=t||'กำลังโหลด...';$('loading').classList.add('show');}
 function hideLoading(){$('loading').classList.remove('show');}
