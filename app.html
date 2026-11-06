@@ -218,7 +218,6 @@ body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(
         <div class="menu-arrow">›</div>
       </div>
       <!-- Admin -->
-      <button class="btn" id="btn-employee-code" type="button">🪪 หมายเลขพนักงานของฉัน</button>
       <div class="menu-card" id="btn-menu-admin">
         <div class="menu-icon-wrap bg-yellow">⚙️</div>
         <div class="menu-info">
@@ -227,6 +226,7 @@ body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(
         </div>
         <div class="menu-arrow">›</div>
       </div>
+      <div style="text-align:right"><button hidden id="btn-employee-code" type="button" style="background:none;border:0;color:var(--text2);font-size:12px;padding:10px;cursor:pointer">หมายเลขพนักงาน</button></div>
     </div>
 
     <div style="text-align:center;padding:8px 20px 4px;">
@@ -420,6 +420,12 @@ body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(
 
       <!-- ฟอร์มลงทะเบียน -->
       <div style="display:flex;flex-direction:column;gap:14px;width:100%;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label for="reg-emp-code">หมายเลขพนักงาน (ถ้ามี)</label>
+          <input type="text" id="reg-emp-code" maxlength="20" placeholder="ถ้ายังไม่มี ให้เว้นว่าง"
+            style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);">
+        </div>
+
 
 
 
@@ -576,6 +582,7 @@ function renderLineProfile(p) {
 
 function initApp() {
   bindEvents();
+  refreshEmployeeCodeStatus();
   fetch(API_URL+'?action=getConfig').then(function(r){return r.json();}).then(function(c){appConfig=c||{};}).catch(function(){});
   if (lineProfile && lineProfile.userId) checkGenQRPermission(lineProfile.userId);
 }
@@ -613,11 +620,30 @@ function employeeCodePost(code, periodStart) {
   });
 }
 
+var employeeCodeRefreshTimer;
+function displayEmployeeCodeStatus(info) {
+  $('btn-employee-code').hidden = info.remaining <= 0;
+  clearTimeout(employeeCodeRefreshTimer);
+  if (info.remaining <= 0) {
+    var nextRound = Date.parse(info.end + 'T00:00:00+07:00') + 86400000;
+    employeeCodeRefreshTimer = setTimeout(refreshEmployeeCodeStatus,
+      Math.max(1000, nextRound - Date.now()));
+  }
+}
+
+function refreshEmployeeCodeStatus() {
+  if (!currentEmp || !lineProfile) return;
+  employeeCodePost().then(displayEmployeeCodeStatus).catch(function(error) {
+    if (error.message.indexOf('Unknown action') >= 0) $('btn-employee-code').hidden = true;
+  });
+}
+
 async function editMyEmployeeCode() {
   var button = $('btn-employee-code');
   button.disabled = true;
   try {
     var info = await employeeCodePost();
+    displayEmployeeCodeStatus(info);
     var period = info.start + ' ถึง ' + info.end;
     if (!info.remaining) {
       showToast('หมายเลข ' + info.code + ' · ครบ 3 ครั้งแล้ว กรุณาติดต่อ HR', 'error');
@@ -626,6 +652,7 @@ async function editMyEmployeeCode() {
     var code = prompt('หมายเลขพนักงาน รอบ ' + period + ' · เหลือ ' + info.remaining + ' ครั้ง', info.code);
     if (code === null || !code.trim()) return;
     var saved = await employeeCodePost(code.trim(), info.start);
+    displayEmployeeCodeStatus(saved);
     showToast('บันทึก ' + saved.code + ' แล้ว · เหลือ ' + saved.remaining + ' ครั้ง', 'success');
   } catch (error) {
     showToast(error.message || 'บันทึกไม่ได้ กรุณาลองใหม่', 'error');
@@ -679,6 +706,7 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
+  if (id === "screen-home") refreshEmployeeCodeStatus();
 }
 
 // ─── CLOCK ───
@@ -1058,18 +1086,20 @@ function goToRegisterScreen() {
     .catch(function(){ sel.innerHTML = '<option value="">-- โหลดไม่ได้ กรุณาลองใหม่ --</option>'; });
 
   // ล้างฟอร์ม
+  document.getElementById('reg-emp-code').value = '';
   document.getElementById('reg-name').value = '';
   document.getElementById('reg-phone').value = '';
   showScreen('screen-register');
 }
 
 function doRegister() {
-  var empCode = '';
+  var empCode = $('reg-emp-code').value.trim().toUpperCase();
   var name    = document.getElementById('reg-name').value.trim();
   var phone   = document.getElementById('reg-phone').value.trim();
   var shift   = document.getElementById('reg-shift').value;
 
   var branch = document.getElementById('reg-branch').value;
+  if (empCode && !/^[A-Z0-9][A-Z0-9-]{0,19}$/.test(empCode)) { showToast('หมายเลขใช้ตัวอักษรอังกฤษ ตัวเลข หรือขีดกลาง','error'); return; }
   if (!name)   { showToast('❌ กรุณากรอกชื่อเล่น','error'); return; }
   if (!/^0[0-9]{8,9}$/.test(phone)) { showToast('❌ กรุณากรอกเบอร์โทร 9–10 หลักที่ขึ้นต้นด้วย 0','error'); return; }
   if (!branch) { showToast('❌ กรุณาเลือกสาขา','error'); return; }
@@ -1082,40 +1112,50 @@ function doRegister() {
   btn.disabled = true;
   showLoading('กำลังลงทะเบียน...');
 
+  function loadRegisteredProfile() {
+    return fetch(API_URL + '?action=getEmployeeByLineId&line_user_id=' + encodeURIComponent(lineProfile.userId), {cache:'no-store'})
+      .then(function(response) { return response.json(); })
+      .then(function(emp) {
+        if (!emp || !emp.emp_id || emp.status !== 'active') throw new Error('ยังโหลดโปรไฟล์พนักงานไม่ได้');
+        return emp;
+      });
+  }
+
   fetch(API_URL, {
     method: 'POST', redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      action       : 'selfRegisterAtBranch',
-      employee_code: empCode,
-      display_name : lineProfile.displayName,
-      branch_id    : branch,
-      name         : name,
-      phone        : phone,
-      shift_id     : shift,
-      line_user_id : lineProfile.userId
-    })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(res) {
-    hideLoading();
-    btn.disabled = false;
-
-    if (res.error) { showToast('❌ ' + res.error, 'error'); return; }
-    btn.disabled = true;
-    return fetch(API_URL + '?action=getEmployeeByLineId&line_user_id=' + encodeURIComponent(lineProfile.userId))
-      .then(function(response) { return response.json(); })
-      .then(function(emp) {
-        btn.disabled = false;
-        if (!emp || !emp.emp_id || emp.status !== 'active') throw new Error('Employee profile unavailable');
-        currentEmp = emp;
-        showRegisterSuccess(emp.name, empCode);
-      });
-  })
-  .catch(function() {
-    hideLoading(); btn.disabled = false;
-    showToast('❌ เชื่อมต่อไม่ได้ กรุณาลองใหม่','error');
-  });
+    body: JSON.stringify({action:'selfRegisterAtBranch', display_name:lineProfile.displayName,
+      branch_id:branch, name:name, phone:phone, shift_id:shift, line_user_id:lineProfile.userId})
+  }).then(function(response) { return response.json(); }).catch(function() { return null; })
+    .then(async function(result) {
+      if (result && result.error) { showToast(result.error, 'error'); return; }
+      try {
+        currentEmp = await loadRegisteredProfile();
+      } catch (error) {
+        if (result && result.success && result.emp_id) {
+          currentEmp = {emp_id:result.emp_id, name:name, shift_id:shift, status:'active'};
+        } else {
+          showToast(result && result.already_exists ? 'ลงทะเบียนแล้ว กรุณาปิดและเปิด LINE ใหม่' : 'ยังยืนยันผลลงทะเบียนไม่ได้ กรุณาเปิด LINE ใหม่เพื่อตรวจสอบ', 'error');
+          return;
+        }
+      }
+      var savedCode = '';
+      var codeError = '';
+      if (empCode) {
+        try {
+          var info = await employeeCodePost();
+          var saved = await employeeCodePost(empCode, info.start);
+          savedCode = saved.code;
+          displayEmployeeCodeStatus(saved);
+        } catch (error) {
+          codeError = error.message.indexOf('Unknown action') >= 0
+            ? 'ลงทะเบียนแล้ว แต่ระบบหมายเลขยังไม่พร้อม กรุณาติดต่อ HR'
+            : 'ลงทะเบียนแล้ว แต่ยังยืนยันหมายเลขไม่ได้: ' + error.message;
+        }
+      }
+      showRegisterSuccess(currentEmp.name, savedCode);
+      if (codeError) showToast(codeError, 'error');
+    }).finally(function() { hideLoading(); btn.disabled = false; });
 }
 
 function showRegisterSuccess(name, empCode) {
