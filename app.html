@@ -421,22 +421,27 @@ body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(
       <div style="display:flex;flex-direction:column;gap:14px;width:100%;">
 
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <label style="font-size:13px;color:var(--text2);font-weight:600;">🪪 หมายเลขประจำตัวพนักงาน *</label>
+          <label style="font-size:13px;color:var(--text2);font-weight:600;">🪪 หมายเลขประจำตัวพนักงาน (เพิ่มทีหลังได้)</label>
           <input type="text" id="reg-emp-code" placeholder="เช่น 001, EMP001, T-001"
             style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-size:15px;outline:none;width:100%;-webkit-appearance:none;letter-spacing:1px;">
-          <span style="font-size:11px;color:var(--text2);">หมายเลขที่ HR แจ้งให้คุณทราบ</span>
+          <span style="font-size:11px;color:var(--text2);">ถ้ายังไม่ได้รับหมายเลขจาก HR ให้เว้นว่าง</span>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <label style="font-size:13px;color:var(--text2);font-weight:600;">👤 ชื่อ-นามสกุล *</label>
-          <input type="text" id="reg-name" placeholder="สมชาย ใจดี"
+          <label style="font-size:13px;color:var(--text2);font-weight:600;">👤 ชื่อเล่น *</label>
+          <input type="text" id="reg-name" placeholder="ชื่อเล่น" required
             style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-size:15px;outline:none;width:100%;-webkit-appearance:none;">
         </div>
 
         <div style="display:flex;flex-direction:column;gap:6px;">
-          <label style="font-size:13px;color:var(--text2);font-weight:600;">📱 เบอร์โทรศัพท์</label>
-          <input type="tel" id="reg-phone" placeholder="0812345678"
+          <label style="font-size:13px;color:var(--text2);font-weight:600;">📱 เบอร์โทรศัพท์ *</label>
+          <input type="tel" id="reg-phone" required placeholder="0812345678"
             style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-size:15px;outline:none;width:100%;-webkit-appearance:none;">
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label for="reg-branch">สาขาที่ทำงาน *</label>
+          <select id="reg-branch" required style="background:var(--card2);color:var(--text);padding:13px 16px;border-radius:12px;"></select>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:6px;">
@@ -996,6 +1001,20 @@ function goToRegisterScreen() {
   var nameEl = document.getElementById('reg-line-name');
   if (nameEl) nameEl.textContent = lineProfile ? lineProfile.displayName : '-';
 
+  var branch = document.getElementById('reg-branch');
+  branch.replaceChildren(new Option('กำลังโหลดสาขา...', ''));
+  fetch(API_URL + '?action=getRegistrationBranches', { cache: 'no-store' })
+    .then(function(response) { return response.json(); })
+    .then(function(branches) {
+      if (!Array.isArray(branches)) throw new Error('Invalid branches');
+      branch.replaceChildren(new Option(branches.length ? 'เลือกสาขา' : 'ไม่มีสาขาที่เปิดรับลงทะเบียน', ''));
+      branches.forEach(function(item) { branch.add(new Option(item.branch_name, item.branch_id)); });
+      if (branches.length === 1) branch.value = branches[0].branch_id;
+    })
+    .catch(function() {
+      branch.replaceChildren(new Option('โหลดสาขาไม่ได้ กรุณาเปิดฟอร์มใหม่', ''));
+    });
+
   // โหลดกะงานให้เลือก
   var sel = document.getElementById('reg-shift');
   sel.innerHTML = '<option value="">-- กำลังโหลด... --</option>';
@@ -1012,7 +1031,7 @@ function goToRegisterScreen() {
 
   // ล้างฟอร์ม
   document.getElementById('reg-emp-code').value = '';
-  document.getElementById('reg-name').value  = lineProfile ? lineProfile.displayName : '';
+  document.getElementById('reg-name').value = '';
   document.getElementById('reg-phone').value = '';
   showScreen('screen-register');
 }
@@ -1023,8 +1042,10 @@ function doRegister() {
   var phone   = document.getElementById('reg-phone').value.trim();
   var shift   = document.getElementById('reg-shift').value;
 
-  if (!empCode){ showToast('❌ กรุณากรอกหมายเลขพนักงาน','error'); return; }
-  if (!name)   { showToast('❌ กรุณากรอกชื่อ-นามสกุล','error'); return; }
+  var branch = document.getElementById('reg-branch').value;
+  if (!name)   { showToast('❌ กรุณากรอกชื่อเล่น','error'); return; }
+  if (!/^0[0-9]{8,9}$/.test(phone)) { showToast('❌ กรุณากรอกเบอร์โทร 9–10 หลักที่ขึ้นต้นด้วย 0','error'); return; }
+  if (!branch) { showToast('❌ กรุณาเลือกสาขา','error'); return; }
   if (!shift)  { showToast('❌ กรุณาเลือกกะงาน','error'); return; }
   if (!lineProfile || !lineProfile.userId) {
     showToast('❌ ไม่พบข้อมูล LINE กรุณาเปิดผ่าน LINE ใหม่','error'); return;
@@ -1038,13 +1059,14 @@ function doRegister() {
     method: 'POST', redirect: 'follow',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
-      action       : 'selfRegisterNew',   // ★ ไม่ต้อง pwd — ยืนยันผ่าน LINE ID แทน
-      nickname     : empCode,             // หมายเลขพนักงาน (เก็บใน nickname)
+      action       : 'selfRegisterAtBranch',
+      employee_code: empCode,
+      display_name : lineProfile.displayName,
+      branch_id    : branch,
       name         : name,
       phone        : phone,
       shift_id     : shift,
-      line_user_id : lineProfile.userId,
-      radius_m     : 100
+      line_user_id : lineProfile.userId
     })
   })
   .then(function(r){ return r.json(); })
@@ -1076,7 +1098,7 @@ function showRegisterSuccess(name, empCode) {
   document.getElementById('success-title').textContent = 'ลงทะเบียนสำเร็จ!';
   document.getElementById('success-name').textContent  = name;
   document.getElementById('result-cards').innerHTML =
-    '<div class="result-card"><span class="result-label">🪪 หมายเลขพนักงาน</span><span class="result-value" style="font-family:monospace;letter-spacing:1px;">'+(empCode||'-')+'</span></div>'
+    '<div class="result-card"><span class="result-label">🪪 หมายเลขพนักงาน</span><span class="result-value" style="font-family:monospace;letter-spacing:1px;">'+(empCode ? 'บันทึกแล้ว' : 'ให้ HR เพิ่มทีหลัง')+'</span></div>'
     + '<div class="result-card"><span class="result-label">💬 LINE</span><span class="result-value" style="color:var(--green);">' + (lineProfile ? lineProfile.displayName : '-') + '</span></div>'
     + '<div class="result-card"><span class="result-label">📋 ถัดไป</span><span class="result-value" style="font-size:13px;">กดปุ่มด้านล่างเพื่อเช็คอินได้เลย</span></div>';
   showScreen('screen-success');
