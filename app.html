@@ -218,6 +218,7 @@ body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(
         <div class="menu-arrow">›</div>
       </div>
       <!-- Admin -->
+      <button class="btn" id="btn-employee-code" type="button">🪪 หมายเลขพนักงานของฉัน</button>
       <div class="menu-card" id="btn-menu-admin">
         <div class="menu-icon-wrap bg-yellow">⚙️</div>
         <div class="menu-info">
@@ -420,12 +421,7 @@ body{font-family:'Sarabun','Segoe UI',sans-serif;background:var(--bg);color:var(
       <!-- ฟอร์มลงทะเบียน -->
       <div style="display:flex;flex-direction:column;gap:14px;width:100%;">
 
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <label style="font-size:13px;color:var(--text2);font-weight:600;">🪪 หมายเลขประจำตัวพนักงาน (เพิ่มทีหลังได้)</label>
-          <input type="text" id="reg-emp-code" placeholder="เช่น 001, EMP001, T-001"
-            style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;color:var(--text);font-size:15px;outline:none;width:100%;-webkit-appearance:none;letter-spacing:1px;">
-          <span style="font-size:11px;color:var(--text2);">ถ้ายังไม่ได้รับหมายเลขจาก HR ให้เว้นว่าง</span>
-        </div>
+
 
         <div style="display:flex;flex-direction:column;gap:6px;">
           <label style="font-size:13px;color:var(--text2);font-weight:600;">👤 ชื่อเล่น *</label>
@@ -607,7 +603,39 @@ function checkGenQRPermission(uid) {
 }
 
 // ─── EVENTS ───
+function employeeCodePost(code, periodStart) {
+  return fetch(API_URL, {
+    method: 'POST', redirect: 'follow', headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({action:'myEmployeeCode', access_token:liff.getAccessToken(), code:code, period_start:periodStart})
+  }).then(function(response) { return response.json(); }).then(function(result) {
+    if (result.error) throw new Error(result.error);
+    return result;
+  });
+}
+
+async function editMyEmployeeCode() {
+  var button = $('btn-employee-code');
+  button.disabled = true;
+  try {
+    var info = await employeeCodePost();
+    var period = info.start + ' ถึง ' + info.end;
+    if (!info.remaining) {
+      showToast('หมายเลข ' + info.code + ' · ครบ 3 ครั้งแล้ว กรุณาติดต่อ HR', 'error');
+      return;
+    }
+    var code = prompt('หมายเลขพนักงาน รอบ ' + period + ' · เหลือ ' + info.remaining + ' ครั้ง', info.code);
+    if (code === null || !code.trim()) return;
+    var saved = await employeeCodePost(code.trim(), info.start);
+    showToast('บันทึก ' + saved.code + ' แล้ว · เหลือ ' + saved.remaining + ' ครั้ง', 'success');
+  } catch (error) {
+    showToast(error.message || 'บันทึกไม่ได้ กรุณาลองใหม่', 'error');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function bindEvents() {
+  $('btn-employee-code').onclick = editMyEmployeeCode;
   $('btn-menu-in').onclick    = function(){ goToSelectEmp('in'); };
   $('btn-menu-out').onclick   = function(){ goToSelectEmp('out'); };
   $('btn-menu-admin').onclick = function(){ window.open(API_URL+'?action=getAdminPage','_blank'); };
@@ -1030,14 +1058,13 @@ function goToRegisterScreen() {
     .catch(function(){ sel.innerHTML = '<option value="">-- โหลดไม่ได้ กรุณาลองใหม่ --</option>'; });
 
   // ล้างฟอร์ม
-  document.getElementById('reg-emp-code').value = '';
   document.getElementById('reg-name').value = '';
   document.getElementById('reg-phone').value = '';
   showScreen('screen-register');
 }
 
 function doRegister() {
-  var empCode = document.getElementById('reg-emp-code').value.trim();
+  var empCode = '';
   var name    = document.getElementById('reg-name').value.trim();
   var phone   = document.getElementById('reg-phone').value.trim();
   var shift   = document.getElementById('reg-shift').value;
@@ -1098,7 +1125,7 @@ function showRegisterSuccess(name, empCode) {
   document.getElementById('success-title').textContent = 'ลงทะเบียนสำเร็จ!';
   document.getElementById('success-name').textContent  = name;
   document.getElementById('result-cards').innerHTML =
-    '<div class="result-card"><span class="result-label">🪪 หมายเลขพนักงาน</span><span class="result-value" style="font-family:monospace;letter-spacing:1px;">'+(empCode ? 'บันทึกแล้ว' : 'ให้ HR เพิ่มทีหลัง')+'</span></div>'
+    '<div class="result-card"><span class="result-label">🪪 หมายเลขพนักงาน</span><span class="result-value" style="font-family:monospace;letter-spacing:1px;">'+(empCode ? 'บันทึกแล้ว' : 'เพิ่มได้ที่เมนูหมายเลขพนักงาน')+'</span></div>'
     + '<div class="result-card"><span class="result-label">💬 LINE</span><span class="result-value" style="color:var(--green);">' + (lineProfile ? lineProfile.displayName : '-') + '</span></div>'
     + '<div class="result-card"><span class="result-label">📋 ถัดไป</span><span class="result-value" style="font-size:13px;">กดปุ่มด้านล่างเพื่อเช็คอินได้เลย</span></div>';
   showScreen('screen-success');
