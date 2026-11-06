@@ -550,24 +550,34 @@ function showLiffError(msg) {
 }
 
 // ★ ตรวจสอบ LINE ID — ถ้าไม่พบ → ไปหน้าลงทะเบียน (ไม่ block แล้ว)
+function fetchEmployeeProfile(action, key, value) {
+  return fetch(API_URL + '?action=' + action + '&' + key + '=' + encodeURIComponent(value), {cache:'no-store'})
+    .then(function(response) {
+      if (!response.ok) throw new Error('Employee lookup failed');
+      return response.json();
+    }).then(function(employee) {
+      if (employee !== null && (!employee || employee.error || !employee.emp_id)) {
+        throw new Error('Invalid employee response');
+      }
+      return employee;
+    });
+}
+
 function verifyLineUser(lineUserId) {
-  fetch(API_URL + '?action=getEmployeeByLineId&line_user_id=' + encodeURIComponent(lineUserId))
-    .then(function(r){ return r.json(); })
+  return fetchEmployeeProfile('getEmployeeByLineId', 'line_user_id', lineUserId)
     .then(function(emp) {
-      if (!emp || !emp.emp_id || emp.status !== 'active') {
-        // ★ ไม่พบในระบบ → ไปหน้าลงทะเบียน
-        document.getElementById('liff-init').style.display = 'none';
-        initApp();
-        goToRegisterScreen();
+      if (emp && String(emp.status).trim().toLowerCase() !== 'active') {
+        showLiffError('บัญชีนี้ยังไม่พร้อมใช้งาน กรุณาติดต่อ HR');
         return;
       }
-      // พบแล้ว → ใช้งานได้เลย
       currentEmp = emp;
       document.getElementById('liff-init').style.display = 'none';
       initApp();
+      if (emp) showScreen('screen-home');
+      else goToRegisterScreen();
     })
     .catch(function() {
-      showLiffError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้\nกรุณาตรวจสอบสัญญาณอินเทอร์เน็ต');
+      showLiffError('ตรวจสอบบัญชีพนักงานไม่ได้ กรุณาเปิดลิงก์ใหม่อีกครั้ง');
     });
 }
 
@@ -1112,13 +1122,18 @@ function doRegister() {
   btn.disabled = true;
   showLoading('กำลังลงทะเบียน...');
 
-  function loadRegisteredProfile() {
-    return fetch(API_URL + '?action=getEmployeeByLineId&line_user_id=' + encodeURIComponent(lineProfile.userId), {cache:'no-store'})
-      .then(function(response) { return response.json(); })
-      .then(function(emp) {
-        if (!emp || !emp.emp_id || emp.status !== 'active') throw new Error('ยังโหลดโปรไฟล์พนักงานไม่ได้');
-        return emp;
-      });
+  async function loadRegisteredProfile(result) {
+    var employee;
+    if (result && result.already_exists && result.emp_id) {
+      employee = await fetchEmployeeProfile('getEmployee', 'emp_id', result.emp_id);
+    } else {
+      employee = await fetchEmployeeProfile('getEmployeeByLineId', 'line_user_id', lineProfile.userId);
+    }
+    if (!employee || String(employee.status).trim().toLowerCase() !== 'active' ||
+        String(employee.line_user_id || '').trim() !== lineProfile.userId) {
+      throw new Error('Employee profile unavailable');
+    }
+    return employee;
   }
 
   fetch(API_URL, {
@@ -1130,14 +1145,20 @@ function doRegister() {
     .then(async function(result) {
       if (result && result.error) { showToast(result.error, 'error'); return; }
       try {
-        currentEmp = await loadRegisteredProfile();
+        currentEmp = await loadRegisteredProfile(result);
       } catch (error) {
         if (result && result.success && result.emp_id) {
           currentEmp = {emp_id:result.emp_id, name:name, shift_id:shift, status:'active'};
+        } else if (result && result.already_exists && result.emp_id) {
+          currentEmp = {emp_id:result.emp_id, name:lineProfile.displayName, status:'active'};
         } else {
-          showToast(result && result.already_exists ? 'ลงทะเบียนแล้ว กรุณาปิดและเปิด LINE ใหม่' : 'ยังยืนยันผลลงทะเบียนไม่ได้ กรุณาเปิด LINE ใหม่เพื่อตรวจสอบ', 'error');
+          showToast('ยังยืนยันผลลงทะเบียนไม่ได้ กรุณาเปิด LINE ใหม่เพื่อตรวจสอบ', 'error');
           return;
         }
+      }
+      if (result && result.already_exists) {
+        showScreen('screen-home');
+        return;
       }
       var savedCode = '';
       var codeError = '';
