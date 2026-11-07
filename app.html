@@ -598,25 +598,41 @@ function initApp() {
 }
 
 // ─── สิทธิ์สร้าง QR ───
+function qrPermissionEnabled(value) {
+  return ['yes', 'true', 'on', '1'].indexOf(String(value == null ? '' : value).trim().toLowerCase()) >= 0;
+}
+
 function checkGenQRPermission(uid) {
-  fetch(API_URL+'?action=getMyQRStatus&line_user_id='+encodeURIComponent(uid))
-    .then(function(r){return r.json();})
-    .then(function(res) {
-      if (!res.emp_id || !res.has_permission) return;
-      var btn  = document.getElementById('btn-menu-gen-qr');
-      var desc = document.getElementById('gen-qr-desc');
-      var badge= document.getElementById('gen-qr-badge');
-      btn.style.display = 'flex';
-      if (res.my_qr_today) {
-        desc.textContent = '✅ สร้างแล้ววันนี้ — กดดู QR ได้เลย';
-      } else if (res.has_any_qr_today) {
-        desc.textContent = '✅ มี QR วันนี้แล้ว — กดดูและแชร์ได้เลย';
+  var button = document.getElementById('btn-menu-gen-qr');
+  var description = document.getElementById('gen-qr-desc');
+  var badge = document.getElementById('gen-qr-badge');
+  var profileHasPermission = currentEmp &&
+    String(currentEmp.status).trim().toLowerCase() === 'active' &&
+    qrPermissionEnabled(currentEmp.can_gen_qr);
+  button.style.display = profileHasPermission ? 'flex' : 'none';
+  if (badge) badge.style.display = 'none';
+  if (profileHasPermission) description.textContent = 'สร้างหรือดู QR ของสาขา';
+  fetch(API_URL + '?action=getMyQRStatus&line_user_id=' + encodeURIComponent(uid), {cache:'no-store'})
+    .then(function(response) {
+      if (!response.ok) throw new Error('QR status unavailable');
+      return response.json();
+    })
+    .then(function(result) {
+      if (!lineProfile || lineProfile.userId !== uid) return;
+      if (!result || result.error || !result.emp_id || typeof result.has_permission !== 'boolean') return;
+      button.style.display = result.has_permission ? 'flex' : 'none';
+      if (!result.has_permission) return;
+      if (result.my_qr_today) {
+        description.textContent = '✅ สร้างแล้ววันนี้ — กดดู QR ได้เลย';
+      } else if (result.has_any_qr_today) {
+        description.textContent = '✅ มี QR วันนี้แล้ว — กดดูและแชร์ได้เลย';
       } else {
-        desc.textContent = 'ยังไม่มี QR วันนี้ — กดสร้างเลย';
+        description.textContent = 'ยังไม่มี QR วันนี้ — กดสร้างเลย';
         if (badge) badge.style.display = 'inline';
       }
-    })
-    .catch(function(){});
+    }).catch(function() {
+      if (profileHasPermission) description.textContent = 'สร้างหรือดู QR ของสาขา · โหลดสถานะล่าสุดไม่ได้';
+    });
 }
 
 // ─── EVENTS ───
@@ -716,7 +732,10 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
-  if (id === "screen-home") refreshEmployeeCodeStatus();
+  if (id === "screen-home") {
+    refreshEmployeeCodeStatus();
+    if (lineProfile && lineProfile.userId) checkGenQRPermission(lineProfile.userId);
+  }
 }
 
 // ─── CLOCK ───
